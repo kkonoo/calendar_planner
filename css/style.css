@@ -822,7 +822,7 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
   }
-  .chip.task { padding-left: 3px; border-left: 2px solid var(--c); background: color-mix(in srgb, var(--c) 7%, transparent); }
+  .chip.task { padding-left: 2px; background: color-mix(in srgb, var(--c) var(--tint), transparent); } /* 할 일도 일정처럼 전체 음영 */
   .span-bar { margin-inline: 2px; }
   .box { display: none; } /* 폭이 좁아 체크 칸은 숨김 — 체크는 아래 날짜 목록에서 */
   .chip .t, .span-bar .t { margin-right: 3px; }
