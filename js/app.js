@@ -937,9 +937,9 @@ $('nextBtn').addEventListener('click', () => shiftMonth(1));
 let swipe = null;
 const slideGrid = x => new Promise(done => {
   const g = $('grid');
-  g.style.transition = 'transform .11s ease-out';
+  g.style.transition = 'transform .08s ease-out';
   g.style.transform = x ? `translateX(${x}px)` : '';
-  setTimeout(done, 110);
+  setTimeout(done, 80);
 });
 $('grid').addEventListener('touchstart', e => {
   const t = e.touches[0];
