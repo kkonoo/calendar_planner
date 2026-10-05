@@ -801,15 +801,24 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
   .plan { flex: none; }
   .col { width: 82vw; }
   .layout { grid-template-columns: 1fr; gap: 12px; padding: 0 12px 16px; }
-  .calendar { height: 72vh; }
+  /* 달력은 화면 끝까지, 칸은 내용만큼 늘어나고 제목은 줄바꿈 (최대 3줄) */
+  .calendar { margin-inline: -12px; border-radius: 0; border-inline: 0; }
+  .grid { grid-auto-rows: minmax(96px, auto); }
   .weekdays span { padding-left: 6px; }
-  .cell { padding: 3px 3px 2px; }
+  .cell { padding: 2px 1px; }
   .cell-head { height: calc(var(--num-size) * 1.5); }
   .num { width: calc(var(--num-size) * 1.5); height: calc(var(--num-size) * 1.5); font-size: calc(var(--num-size) * .85); }
-  .chip, .span-bar { font-size: calc(var(--chip-font) * .78); padding: 0 3px; }
-  .span-bar { margin-inline: 3px; }
-  .box { width: 10px; height: 10px; margin-right: 3px; vertical-align: -1px; }
-  .done .box::after { left: 2px; top: -1px; }
-  .chip .t, .span-bar .t { display: none; }
+  .chip, .span-bar { font-size: calc(var(--chip-font) * .78); line-height: 1.35; padding: 1px 2px; border-radius: 3px; }
+  .chip {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+  .chip.task { padding-left: 3px; border-left: 2px solid var(--c); background: color-mix(in srgb, var(--c) 7%, transparent); }
+  .span-bar { margin-inline: 2px; }
+  .box { display: none; } /* 폭이 좁아 체크 칸은 숨김 — 체크는 아래 날짜 목록에서 */
+  .chip .t, .span-bar .t { margin-right: 3px; }
   .hol { display: none; }
 }

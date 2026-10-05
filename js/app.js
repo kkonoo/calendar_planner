@@ -224,7 +224,9 @@ function renderGrid() {
   const first = toNum(`${view.y}-${pad(view.m)}-01`);
   const start = first - weekday(first);
   const weeks = Math.ceil((weekday(first) + new Date(Date.UTC(view.y, view.m, 0)).getUTCDate()) / 7);
-  grid.style.gridTemplateRows = `repeat(${weeks}, minmax(0, 1fr))`;
+  // 폰: 제목을 줄바꿈해서 다 보여주고 칸이 내용만큼 늘어남 (줄 높이는 CSS grid-auto-rows)
+  const phone = matchMedia('(max-width: 900px)').matches;
+  grid.style.gridTemplateRows = phone ? '' : `repeat(${weeks}, minmax(0, 1fr))`;
   grid.replaceChildren();
 
   const cells = [];
@@ -256,7 +258,7 @@ function renderGrid() {
   const lineH = probe.offsetHeight + 2; // + 줄 간격
   probe.remove();
   const top = head.offsetTop + head.offsetHeight + 2;
-  const room = Math.max(1, Math.floor((cell0.clientHeight - top - 2) / lineH));
+  const room = phone ? Infinity : Math.max(1, Math.floor((cell0.clientHeight - top - 2) / lineH));
 
   // 여러 날 일정: 주(줄)마다 막대로 그리고, 겹치면 아래 줄로
   const spans = live().filter(isSpan);
