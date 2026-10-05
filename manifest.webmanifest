@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "플래너",
-  "short_name": "플래너",
+  "name": "캘린더x플래너",
+  "short_name": "캘린더x플래너",
   "description": "달력 · 할 일 · 반복 일정 플래너",
   "lang": "ko",
   "start_url": "./",
