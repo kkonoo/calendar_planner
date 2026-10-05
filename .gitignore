@@ -7,3 +7,6 @@ data/
 
 # 직접 만든 원본 로고 (사이트에는 안 씀)
 icons/icon.png
+
+# Claude 작업 지침 (로컬 전용)
+CLAUDE.md
