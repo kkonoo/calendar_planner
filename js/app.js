@@ -467,7 +467,7 @@ $('todoAdd').addEventListener('submit', e => {
 
 // ---------- 편집 창 ----------
 const editor = $('editor'), form = $('editForm');
-let editing = null, editingDate = null, editCat = null, editDays = [], editScope = 'all', editChecklist = [];
+let editing = null, editingDate = null, editCat = null, editBucket = null, editDays = [], editScope = 'all', editChecklist = [];
 // 이미 저장된 반복 일정을 특정 날짜에서 연 경우 → '이 날만 / 모든 반복' 선택
 const isSeriesEdit = () => !!(editing.repeat && editingDate && db.items.includes(editing));
 const freqOf = r => !r ? '' : r.freq === 'monthly' && r.nth ? 'monthly-nth' : r.freq === 'yearly' && r.lunar ? 'yearly-lunar' : r.freq;
@@ -476,6 +476,7 @@ function openEditor(it, s, presetDate) {
   editing = it;
   editingDate = s;
   editCat = it.cat;
+  editBucket = it.bucket || null;
   const r = it.repeat;
   form.title.value = it.title;
   form.endDate.value = it.endDate || '';
@@ -504,8 +505,14 @@ function setScope(scope, presetDate) {
 }
 document.querySelectorAll('#scopeRow [data-scope]').forEach(b => b.addEventListener('click', () => setScope(b.dataset.scope)));
 
+const editBuckets = () => (db.categories.find(c => c.id === editCat) || {}).buckets || [];
 function syncEditor() {
   renderCatPick($('editCats'), editCat, c => { editCat = c; syncEditor(); });
+  // 그룹: 고른 카테고리에 그룹이 있을 때만
+  const bs = editBuckets();
+  $('bucketRow').hidden = !bs.length;
+  form.bucket.replaceChildren(...[{ id: '', name: '그룹 없음' }, ...bs].map(b => { const o = h('option', '', b.name); o.value = b.id; return o; }));
+  form.bucket.value = bs.some(b => b.id === editBucket) ? editBucket : '';
   const series = isSeriesEdit(), one = series && editScope === 'one';
   const f = one ? '' : form.freq.value;
   $('scopeRow').hidden = !series;
@@ -531,6 +538,7 @@ function syncEditor() {
 }
 form.freq.addEventListener('change', syncEditor);
 form.date.addEventListener('change', syncEditor);
+form.bucket.addEventListener('change', () => { editBucket = form.bucket.value || null; });
 
 // 체크리스트 (하위 항목) — 저장 버튼 누를 때 반영
 function renderChecklist() {
@@ -602,6 +610,7 @@ form.addEventListener('submit', e => {
   it.endDate = it.date && !f && form.endDate.value > it.date ? form.endDate.value : null;
   it.time = time || null;
   it.cat = editCat;
+  it.bucket = editBuckets().some(b => b.id === editBucket) ? editBucket : null;
   it.dday = form.dday.checked;
   it.note = form.note.value;
   it.checklist = editChecklist.filter(c => c.text.trim());

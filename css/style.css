@@ -63,9 +63,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* 보기 전환: 일정(달력) / 보드 / 눈금 */
 body:not([data-view="calendar"]) .nav, body:not([data-view="calendar"]) .layout { display: none; }
 body[data-view="calendar"] .view-title { display: none; }
-.board-view, .table-view { display: none; }
-body[data-view="board"] .board-view { display: flex; }
-body[data-view="table"] .table-view { display: block; }
+.task-view { display: none; }
+body[data-view="board"] .task-view, body[data-view="table"] .task-view { display: flex; }
+body[data-view="board"] .table-view, body[data-view="table"] .board { display: none; }
 .nav, .tools { display: flex; align-items: center; gap: 6px; }
 .month-title {
   min-width: 150px;
@@ -545,14 +545,39 @@ textarea:focus { border-color: var(--accent); }
 .cat-row input:not([type="color"]) { flex: 1; }
 #addCatBtn { margin-bottom: 14px; }
 
+/* ---------- 보드·눈금 공통: 왼쪽 탭(카테고리) ---------- */
+.task-view { flex: 1; min-height: 0; gap: 18px; padding: 0 24px 24px; }
+.plan-nav { flex: none; display: flex; flex-direction: column; gap: 2px; width: 180px; overflow-y: auto; }
+.plan {
+  --c: var(--faint);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+}
+.plan:hover { background: var(--surface); }
+.plan.on { background: var(--surface); font-weight: 700; box-shadow: inset 3px 0 0 var(--c), var(--shadow); }
+.plan.all { --c: var(--accent); }
+.plan .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.plan.all .dot { border-radius: 3px; }
+.plan-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.plan .count { font-size: 12px; font-weight: 400; color: var(--muted); }
+.plan.drop { outline: 2px dashed var(--c); outline-offset: -2px; }
+
 /* ---------- 보드 ---------- */
-.board-view {
+.board {
   flex: 1;
-  min-height: 0;
+  min-width: 0;
+  display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 0 24px 24px;
-  overflow-x: auto;
+  overflow: auto;
 }
 .col {
   --c: var(--faint);
@@ -574,6 +599,43 @@ textarea:focus { border-color: var(--accent); }
 .col-head .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 .col-head h3 { margin: 0; font-size: 15px; }
 .col-head .count { margin-left: auto; font-size: 12px; color: var(--muted); }
+.col-name {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  outline: none;
+}
+.col-name:hover, .col-name:focus { border-color: var(--line); background: var(--surface); }
+.col-head .col-del { margin-left: 0; visibility: hidden; }
+.col:hover .col-del { visibility: visible; }
+.add-group {
+  flex: none;
+  width: 200px;
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+.add-group:hover { background: var(--surface); color: var(--text); }
+.card-note {
+  display: -webkit-box;
+  margin: 6px 0 0 28px;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  white-space: pre-line;
+  font-size: calc(var(--list-font) - 2px);
+  color: var(--muted);
+}
+.tag { padding: 1px 7px; border-radius: 5px; background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--text); }
 .col .add-input { margin-top: 0; background: var(--surface); }
 .cards { display: flex; flex-direction: column; gap: 8px; }
 .card {
@@ -600,7 +662,8 @@ textarea:focus { border-color: var(--accent); }
 .done-toggle:hover { color: var(--text); }
 
 /* ---------- 눈금 (표) ---------- */
-.table-view { flex: 1; min-height: 0; overflow: auto; padding: 0 24px 24px; }
+.table-view { flex: 1; min-width: 0; overflow: auto; }
+.t-group { white-space: nowrap; }
 .table-bar { display: flex; align-items: center; margin-bottom: 10px; }
 .table-wrap { overflow-x: auto; padding-bottom: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .table-wrap form { padding: 0 12px; }
@@ -645,7 +708,9 @@ textarea:focus { border-color: var(--accent); }
   .topbar { padding: 12px 12px 10px; }
   .month-title { font-size: 19px; min-width: 110px; }
   #settings { margin: auto; }
-  .board-view, .table-view { padding: 0 12px 16px; }
+  .task-view { flex-direction: column; gap: 10px; padding: 0 12px 16px; }
+  .plan-nav { flex-direction: row; width: auto; overflow-x: auto; }
+  .plan { flex: none; }
   .col { width: 82vw; }
   .layout { grid-template-columns: 1fr; padding: 0 12px 16px; }
   .calendar { height: 72vh; }

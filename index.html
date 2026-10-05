@@ -74,18 +74,21 @@
   </aside>
 </main>
 
-<main class="board-view" id="boardView"></main>
-
-<main class="table-view">
-  <div class="table-bar">
-    <label class="check-label"><input type="checkbox" id="tableDoneChk"> <span id="tableDoneLabel"></span></label>
-  </div>
-  <div class="table-wrap">
-    <table class="task-table">
-      <thead><tr><th></th><th>작업 이름</th><th>카테고리</th><th>날짜</th><th>체크리스트</th><th>메모</th></tr></thead>
-      <tbody id="taskRows"></tbody>
-    </table>
-    <form id="tableAdd"><input class="add-input" id="tableInput" placeholder="+ 새 작업 추가" autocomplete="off"></form>
+<!-- 보드·눈금: 왼쪽 탭(카테고리) + 오른쪽 내용 -->
+<main class="task-view">
+  <nav class="plan-nav" id="planNav"></nav>
+  <div class="board" id="boardCols"></div>
+  <div class="table-view">
+    <div class="table-bar">
+      <label class="check-label"><input type="checkbox" id="tableDoneChk"> <span id="tableDoneLabel"></span></label>
+    </div>
+    <div class="table-wrap">
+      <table class="task-table">
+        <thead><tr><th></th><th>작업 이름</th><th>카테고리</th><th>그룹</th><th>날짜</th><th>체크리스트</th><th>메모</th></tr></thead>
+        <tbody id="taskRows"></tbody>
+      </table>
+      <form id="tableAdd"><input class="add-input" id="tableInput" placeholder="+ 새 작업 추가" autocomplete="off"></form>
+    </div>
   </div>
 </main>
 
@@ -113,6 +116,7 @@
       <span class="hint">직접 입력도 돼요 · 예) 14:15</span>
     </div>
     <div class="row"><label>카테고리</label><div class="cat-pick" id="editCats"></div></div>
+    <div class="row" id="bucketRow"><label>그룹</label><select name="bucket"></select></div>
     <div class="row" id="freqRow">
       <label>반복</label>
       <select name="freq">
