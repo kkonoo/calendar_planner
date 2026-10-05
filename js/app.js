@@ -779,7 +779,7 @@ function syncUIControls() {
     inp.nextElementSibling.textContent = `${u[inp.dataset.ui]}px`;
   });
   $('themeSelect').value = prefs.theme || '';
-  $('swipeFxSelect').value = prefs.swipeFx || 'slide';
+  $('swipeFxSelect').value = prefs.swipeFx === 'none' ? 'none' : 'carousel';
 }
 document.querySelectorAll('[data-ui]').forEach(inp => inp.addEventListener('input', () => {
   prefs.ui = { ...ui(), [inp.dataset.ui]: +inp.value };
@@ -936,21 +936,19 @@ addEventListener('drop', e => {
 $('prevBtn').addEventListener('click', () => shiftMonth(-1));
 $('nextBtn').addEventListener('click', () => shiftMonth(1));
 // 폰: 달력을 왼쪽으로 밀면 다음 달, 오른쪽으로 밀면 이전 달 (세로 스크롤은 그대로)
-// 넘기는 효과는 설정 > 화면 > 달 넘기기 (prefs.swipeFx, 기기별)
-//   carousel 옆 달이 붙어서 같이 밀림 / soft 살짝 밀리며 흐려짐 / fade 흐려짐 / slide 밀어내기 / none 효과 없음
+// 옆 달이 붙어서 같이 밀림. 설정 > 화면 > 달 넘기기에서 끄면 바로 바뀜 (prefs.swipeFx = 'none', 기기별)
 let swipe = null;
-// el의 style을 ms 동안 바꿈 (0이면 바로). 앞 상태를 먼저 적용해야 움직임이 보여서 offsetWidth로 확정
-const anim = (el, css, ms) => new Promise(done => {
+// el을 x만큼 ms 동안 옮김 (0이면 바로). 앞 위치를 먼저 적용해야 움직임이 보여서 offsetWidth로 확정
+const slideTo = (el, x, ms) => new Promise(done => {
   el.offsetWidth;
-  el.style.transition = ms ? `transform ${ms}ms ease-out, opacity ${ms}ms ease-out` : 'none';
-  Object.assign(el.style, css);
+  el.style.transition = ms ? `transform ${ms}ms ease-out` : 'none';
+  el.style.transform = x ? `translateX(${x}px)` : '';
   ms ? setTimeout(done, ms) : done();
 });
-const tx = x => x ? `translateX(${x}px)` : '';
-// 옆 달(d = -1 / 1)을 달력 옆에 미리 그려 둠 (carousel)
+// 옆 달(d = -1 / 1)을 달력 옆에 미리 그려 둠
 function peekMonth(d) {
   const g = $('grid'), p = h('div', 'grid peek'), t = new Date(Date.UTC(view.y, view.m - 1 + d, 1));
-  Object.assign(p.style, { position: 'absolute', left: 0, right: 0, top: `${g.offsetTop}px`, transform: tx(d * g.offsetWidth) });
+  Object.assign(p.style, { position: 'absolute', left: 0, right: 0, top: `${g.offsetTop}px`, transform: `translateX(${d * g.offsetWidth}px)` });
   if (g.style.gridTemplateRows) p.style.height = `${g.offsetHeight}px`;
   g.after(p);
   renderGrid(p, { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1 });
@@ -961,7 +959,7 @@ $('grid').addEventListener('touchstart', e => {
   if (swipe) return endSwipe(true); // 두 번째 손가락이 닿으면 제자리로
   if (e.touches.length !== 1 || swipeBusy) return;
   const t = e.touches[0];
-  swipe = { x: t.clientX, y: t.clientY, dx: 0, side: null, fx: prefs.swipeFx || 'slide' };
+  swipe = { x: t.clientX, y: t.clientY, dx: 0, side: null, anim: prefs.swipeFx !== 'none' };
   // 손가락을 뗄 때까지의 이벤트는 처음 닿은 칸으로 옴 → 중간에 달력을 다시 그려 그 칸이 빠져도 받도록 칸에 직접 붙임
   const el = e.target;
   const stop = cancel => () => {
@@ -981,55 +979,35 @@ function moveSwipe(e) {
   // 처음 10px 움직인 방향으로 가로 밀기인지 세로 스크롤인지 정함
   if (swipe.side === null && Math.hypot(dx, dy) > 10) {
     swipe.side = Math.abs(dx) > Math.abs(dy) * 1.5;
-    if (swipe.side && swipe.fx === 'carousel') swipe.peek = { '-1': peekMonth(-1), 1: peekMonth(1) };
+    if (swipe.side && swipe.anim) swipe.peek = { '-1': peekMonth(-1), 1: peekMonth(1) };
   }
   if (!swipe.side) return;
   swipe.dx = dx;
-  const g = $('grid'), w = g.offsetWidth, k = Math.min(Math.abs(dx) / w, 1);
-  if (swipe.fx === 'carousel') {
-    anim(g, { transform: tx(dx) }, 0);
-    for (const d of [-1, 1]) anim(swipe.peek[d], { transform: tx(d * w + dx) }, 0);
-  } else if (swipe.fx === 'slide') anim(g, { transform: tx(dx) }, 0);
-  else if (swipe.fx === 'soft') anim(g, { transform: tx(dx * .3), opacity: 1 - k * .5 }, 0);
-  else if (swipe.fx === 'fade') anim(g, { opacity: 1 - k * .6 }, 0);
+  if (!swipe.peek) return;
+  const g = $('grid'), w = g.offsetWidth;
+  slideTo(g, dx, 0);
+  for (const d of [-1, 1]) slideTo(swipe.peek[d], d * w + dx, 0);
 }
 const endSwipe = async cancel => {
   if (!swipe) return;
-  const { dx, side, fx, peek } = swipe;
+  const { dx, side, peek } = swipe;
   swipe = null;
   if (!side) return;
   swipeBusy = true;
-  try { await finishSwipe(dx, fx, peek, cancel); } finally { swipeBusy = false; }
+  try { await finishSwipe(dx, peek, cancel); } finally { swipeBusy = false; }
 };
-async function finishSwipe(dx, fx, peek, cancel) {
+async function finishSwipe(dx, peek, cancel) {
   const g = $('grid'), w = g.offsetWidth, go = !cancel && Math.abs(dx) >= 60, d = dx < 0 ? 1 : -1;
-  if (fx === 'carousel') {
-    // 옆 달이 마저 들어오거나(넘김) 제자리로
-    anim(peek[-1], { transform: tx(-w + (go ? -d * w : 0)) }, go ? 160 : 140);
-    anim(peek[1], { transform: tx(w + (go ? -d * w : 0)) }, go ? 160 : 140);
-    await anim(g, { transform: tx(go ? -d * w : 0) }, go ? 160 : 140);
-    if (go) shiftMonth(d);
-    anim(g, { transform: '' }, 0);
-    peek[-1].remove();
-    peek[1].remove();
-    return;
-  }
-  if (!go) return anim(g, { transform: '', opacity: '' }, 120); // 조금만 밀었거나 중간에 끊기면 제자리로
-  if (fx === 'slide') {
-    await anim(g, { transform: tx(-d * w) }, 80);
-    shiftMonth(d);
-    await anim(g, { transform: tx(d * w) }, 0);
-    await anim(g, { transform: '' }, 80);
-  } else if (fx === 'soft') {
-    await anim(g, { transform: tx(-d * 40), opacity: 0 }, 90);
-    shiftMonth(d);
-    await anim(g, { transform: tx(d * 40), opacity: 0 }, 0);
-    await anim(g, { transform: '', opacity: '' }, 170);
-  } else if (fx === 'fade') {
-    await anim(g, { opacity: 0 }, 70);
-    shiftMonth(d);
-    await anim(g, { opacity: '' }, 150);
-  } else shiftMonth(d);
+  if (!peek) { if (go) shiftMonth(d); return; } // 효과 끔
+  // 옆 달이 마저 들어오거나(넘김), 조금만 밀었거나 끊기면 제자리로
+  const ms = go ? 160 : 140, shift = go ? -d * w : 0;
+  slideTo(peek[-1], -w + shift, ms);
+  slideTo(peek[1], w + shift, ms);
+  await slideTo(g, shift, ms);
+  if (go) shiftMonth(d);
+  slideTo(g, 0, 0);
+  peek[-1].remove();
+  peek[1].remove();
 }
 $('todayBtn').addEventListener('click', () => select(todayStr()));
 let resizeTimer;
