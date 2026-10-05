@@ -36,6 +36,7 @@ index.html              화면 구조
 css/style.css           디자인 (색은 맨 위 :root 변수)
 js/app.js               날짜·반복(음력) 계산, 달력, 편집 창, 설정, 불러오기
 js/views.js             보드·눈금 보기 (왼쪽 탭 = 카테고리, 열 = 그룹)
+js/search.js            검색 (Ctrl+K)
 js/sync.js              Google 로그인 + 동기화 (Firebase)
 js/firebase-config.js   Firebase 프로젝트 설정값
 js/ics.js               .ics 변환

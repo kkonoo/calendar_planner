@@ -1,11 +1,30 @@
 'use strict';
 // 할 일 자세히 보기: 보드 / 눈금(표). 왼쪽 탭 = 카테고리, 보드의 열 = 카테고리 안의 그룹. (app.js 의 함수·데이터를 사용)
-// 대상: 시간 없는 한 번짜리 항목(= 할 일). 시간 있는 일정·반복·여러 날 일정은 달력에서만.
-// 그룹은 category.buckets = [{ id, name }], 할 일의 그룹은 item.bucket
-const isTask = it => !it.time && !it.repeat && !isSpan(it);
+// 대상: 시간 없는 항목(= 할 일). 반복 할 일은 '오늘 이후 아직 안 한 가장 가까운 날'로 보여줌.
+// 시간 있는 일정·여러 날 일정은 달력에서만.
+// 그룹은 category.buckets = [{ id, name }], 할 일의 그룹은 item.bucket, 열 안의 순서는 item.order
+const isTask = it => !it.time && !isSpan(it);
 const tasks = () => live().filter(isTask);
+
+let nextCache = new Map(); // 그릴 때마다 비움
+function nextOpen(it) {
+  if (nextCache.has(it)) return nextCache.get(it);
+  const today = todayStr(), r = it.repeat;
+  let found = null;
+  for (let b = Math.max(toNum(today), toNum(it.date)), end = toNum(today) + 366 * (r.interval || 1) + 31; b <= end; b++) {
+    const s = toStr(b);
+    if (r.until && s > r.until) break;
+    if (occursOn(it, s) && !it.doneDates.includes(s)) { found = s; break; }
+  }
+  nextCache.set(it, found);
+  return found;
+}
+const taskDate = it => (it.repeat ? nextOpen(it) : it.date);
+const taskDone = it => (it.repeat ? !nextOpen(it) : it.done); // 반복은 끝나야 완료
 // 마감일 가까운 순 → 날짜 없는 것은 뒤로
-const taskOrder = (a, b) => (a.date || '9999').localeCompare(b.date || '9999') || a.createdAt - b.createdAt;
+const taskOrder = (a, b) => (taskDate(a) || '9999').localeCompare(taskDate(b) || '9999') || a.createdAt - b.createdAt;
+// 열 안 순서: 직접 옮긴 카드(order)가 먼저, 나머지는 날짜순
+const byManual = (a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || taskOrder(a, b);
 const catById = id => db.categories.find(c => c.id === id);
 const knownCat = it => (catById(it.cat) ? it.cat : null);
 const bucketsOf = catId => (catById(catId) || {}).buckets || [];
@@ -24,6 +43,20 @@ function moveTask(id, cat, bucket) {
   if (same && knownBucket(it) === nb) return;
   it.cat = cat;
   it.bucket = nb;
+  delete it.order; // 다른 열로 가면 맨 아래(날짜순 자리)로
+  touch(it);
+  save();
+}
+// 카드를 target 카드 앞/뒤에 놓기 (다른 열에서 왔으면 그 열로 옮기고), 그 열 순서를 0,1,2…로 다시 매김
+function placeCard(id, target, before, { c, list }) {
+  const it = db.items.find(i => i.id === id);
+  if (!it || it === target) return;
+  const same = knownCat(it) === c.cat;
+  it.cat = c.cat;
+  it.bucket = c.bucket === undefined ? (same ? knownBucket(it) : null) : c.bucket;
+  const arr = list.filter(x => x !== it);
+  arr.splice(arr.indexOf(target) + (before ? 0 : 1), 0, it);
+  arr.forEach((x, k) => { if (x.order !== k) { x.order = k; touch(x); } });
   touch(it);
   save();
 }
@@ -61,19 +94,25 @@ function moveGroup(catId, fromId, toId, before) {
   save();
 }
 function dueBadge(it) {
-  if (!it.date) return null;
-  return h('span', 'due' + (!it.done && it.date < todayStr() ? ' late' : ''), `📅 ${fmtShort(it.date)}`);
+  const d = taskDate(it);
+  if (!d) return it.repeat ? h('span', 'due', '↻ 반복 끝남') : null;
+  return h('span', 'due' + (!taskDone(it) && d < todayStr() ? ' late' : ''), `${it.repeat ? '↻' : '📅'} ${fmtShort(d)}`);
 }
+// 반복 할 일은 체크하면 그 회차만 완료 → 다음 날짜로 넘어감
 function doneCheck(it) {
-  const b = h('button', 'check' + (it.done ? ' on' : ''));
-  b.setAttribute('aria-label', '완료 표시');
-  b.addEventListener('click', e => { e.stopPropagation(); toggleDone(it); });
+  const b = h('button', 'check' + (taskDone(it) ? ' on' : ''));
+  b.setAttribute('aria-label', it.repeat ? '이번 회차 완료' : '완료 표시');
+  b.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!it.repeat) toggleDone(it);
+    else if (nextOpen(it)) toggleDone(it, nextOpen(it));
+  });
   return b;
 }
 
 // ---------- 왼쪽 탭 (보드·눈금 공통) ----------
 function renderPlanNav() {
-  const open = tasks().filter(it => !it.done);
+  const open = tasks().filter(it => !taskDone(it));
   const plans = [
     { key: 'all', name: '전체' },
     ...db.categories.map(c => ({ key: c.id, name: c.name, color: c.color })),
@@ -106,13 +145,15 @@ function renderPlanNav() {
 const openDoneCols = new Set();
 let boardFocus; // 작업·그룹 추가 후 다시 커서 줄 곳
 
-function card(it, showGroup) {
-  const e = h('div', 'card' + (it.done ? ' done' : ''));
+// ctx = { c: 열 정보, list: 그 열의 진행 중 카드 목록 } — 있으면 카드 위에 놓아 순서 바꾸기 가능
+function card(it, showGroup, ctx) {
+  const done = taskDone(it);
+  const e = h('div', 'card' + (done ? ' done' : ''));
   setColor(e, it.cat);
   const top = h('div', 'card-top');
   top.append(doneCheck(it), h('span', 'card-title', it.title));
   e.append(top);
-  const todo = it.done ? [] : (it.checklist || []).filter(c => !c.done).slice(0, 5);
+  const todo = done ? [] : (it.checklist || []).filter(c => !c.done).slice(0, 5);
   for (const c of todo) {
     const row = h('div', 'card-cl');
     const b = h('button', 'check small');
@@ -121,7 +162,7 @@ function card(it, showGroup) {
     row.append(b, h('span', '', c.text));
     e.append(row);
   }
-  if (!todo.length && !it.done && it.note) e.append(h('div', 'card-note', it.note));
+  if (!todo.length && !done && it.note) e.append(h('div', 'card-note', it.note));
 
   const meta = h('div', 'card-meta');
   const group = showGroup && bucketsOf(knownCat(it)).find(b => b.id === it.bucket);
@@ -131,15 +172,36 @@ function card(it, showGroup) {
   const p = clProgress(it);
   if (p) meta.append(h('span', '', `☑ ${p}`));
   if (meta.childElementCount) e.append(meta);
-  e.addEventListener('click', () => openEditor(it, it.date));
+  e.addEventListener('click', () => openEditor(it, taskDate(it)));
   draggable(e, it, it.date);
+
+  if (ctx) {
+    const side = ev => (ev.clientY < e.getBoundingClientRect().top + e.offsetHeight / 2 ? 'before' : 'after');
+    const isCardDrag = ev => !isGroupDrag(ev) && ev.dataTransfer.types.includes('text/plain');
+    e.addEventListener('dragover', ev => {
+      if (!isCardDrag(ev)) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      e.classList.toggle('drop-before', side(ev) === 'before');
+      e.classList.toggle('drop-after', side(ev) === 'after');
+    });
+    e.addEventListener('dragleave', () => e.classList.remove('drop-before', 'drop-after'));
+    e.addEventListener('drop', ev => {
+      if (!isCardDrag(ev)) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      e.classList.remove('drop-before', 'drop-after');
+      e.closest('.col').classList.remove('drop');
+      placeCard(dragId(ev), it, side(ev) === 'before', ctx);
+    });
+  }
   return e;
 }
 
 // c = { key, name, color, cat, bucket(undefined: 전체 보기의 카테고리 열), group(이름 바꿀 수 있는 그룹), items }
 function column(c, plan) {
-  const open = c.items.filter(it => !it.done).sort(taskOrder);
-  const done = c.items.filter(it => it.done).sort(taskOrder);
+  const open = c.items.filter(it => !taskDone(it)).sort(byManual);
+  const done = c.items.filter(it => taskDone(it)).sort(taskOrder);
   const key = `${plan}/${c.key}`;
   const col = h('section', 'col');
   col.dataset.key = key;
@@ -218,12 +280,16 @@ function column(c, plan) {
     e.preventDefault();
     const title = input.value.trim();
     if (!title) return;
-    db.items.push(newItem({ title, cat: c.cat, bucket: c.bucket || null }));
+    const it = newItem({ title, cat: c.cat, bucket: c.bucket || null });
+    // 순서를 직접 정한 열이면 새 카드는 맨 위에
+    const orders = open.filter(x => x.order != null).map(x => x.order);
+    if (orders.length) it.order = Math.min(...orders) - 1;
+    db.items.push(it);
     boardFocus = `.col[data-key="${key}"] .add-input`;
     save();
   });
   const list = h('div', 'cards');
-  list.append(...open.map(it => card(it, plan === 'all')));
+  list.append(...open.map(it => card(it, plan === 'all', { c, list: open })));
   col.append(head, add, list);
 
   if (done.length) {
@@ -244,6 +310,7 @@ function column(c, plan) {
 }
 
 function renderBoard() {
+  nextCache = new Map();
   renderPlanNav();
   const plan = currentPlan(), all = tasks();
   const none = { key: 'none', name: '미분류', cat: null, bucket: null, items: all.filter(it => !knownCat(it)) };
@@ -280,11 +347,12 @@ function renderBoard() {
 
 // ---------- 눈금 (표) ----------
 function renderTable() {
+  nextCache = new Map();
   renderPlanNav();
   const plan = currentPlan(), mine = tasks().filter(it => inPlan(it, plan)), showDone = !!prefs.tableDone;
   $('tableDoneChk').checked = showDone;
-  $('tableDoneLabel').textContent = `완료된 작업도 표시 (${mine.filter(it => it.done).length})`;
-  const rows = mine.filter(it => showDone || !it.done).sort((a, b) => a.done - b.done || taskOrder(a, b));
+  $('tableDoneLabel').textContent = `완료된 작업도 표시 (${mine.filter(taskDone).length})`;
+  const rows = mine.filter(it => showDone || !taskDone(it)).sort((a, b) => taskDone(a) - taskDone(b) || taskOrder(a, b));
   const stop = e => e.stopPropagation();
   const select = (options, value, onChange) => {
     const s = h('select', 't-input');
@@ -296,7 +364,7 @@ function renderTable() {
   };
 
   $('taskRows').replaceChildren(...(rows.length ? rows.map(it => {
-    const tr = h('tr', it.done ? 'done' : '');
+    const tr = h('tr', taskDone(it) ? 'done' : '');
     setColor(tr, it.cat);
     const tdCheck = h('td', 't-check');
     tdCheck.append(doneCheck(it));
@@ -311,18 +379,23 @@ function renderTable() {
       tdGroup.append(select([['', '그룹 없음'], ...bs.map(b => [b.id, b.name])], knownBucket(it) || '',
         v => { it.bucket = v; touch(it); save(); }));
     }
-    const date = h('input', 't-input');
-    date.type = 'date';
-    date.value = it.date || '';
-    date.addEventListener('click', stop);
-    date.addEventListener('change', () => { it.date = date.value || null; touch(it); save(); });
     const tdDate = h('td', 't-date' + (!it.done && it.date && it.date < todayStr() ? ' late' : ''));
-    tdDate.append(date);
+    if (it.repeat) {
+      // 반복은 다음 날짜만 보여줌 (반복 설정은 편집 창에서)
+      tdDate.append(h('span', 't-rep', taskDate(it) ? `↻ ${fmtShort(taskDate(it))}` : '↻ 반복 끝남'));
+    } else {
+      const date = h('input', 't-input');
+      date.type = 'date';
+      date.value = it.date || '';
+      date.addEventListener('click', stop);
+      date.addEventListener('change', () => { it.date = date.value || null; touch(it); save(); });
+      tdDate.append(date);
+    }
 
     tr.append(tdCheck, h('td', 't-title', it.title), tdCat, tdGroup, tdDate,
       h('td', 't-cl', clProgress(it) ? `☑ ${clProgress(it)}` : ''),
       h('td', 't-note', (it.note || '').split('\n')[0]));
-    tr.addEventListener('click', () => openEditor(it, it.date));
+    tr.addEventListener('click', () => openEditor(it, taskDate(it)));
     return tr;
   }) : [(() => { const tr = h('tr', 'empty'), td = h('td', '', '할 일이 없어요'); td.colSpan = 7; tr.append(td); return tr; })()]));
 }

@@ -491,6 +491,7 @@ function openEditor(it, s, presetDate) {
   form.endDate.value = it.endDate || '';
   form.time.value = it.time || '';
   form.time.setCustomValidity('');
+  form.date.setCustomValidity('');
   form.freq.value = freqOf(r);
   form.interval.value = (r && r.interval) || 1;
   form.until.value = (r && r.until) || '';
@@ -557,6 +558,8 @@ function syncEditor() {
 }
 form.freq.addEventListener('change', syncEditor);
 form.date.addEventListener('change', syncEditor);
+form.date.addEventListener('input', () => form.date.setCustomValidity(''));
+form.freq.addEventListener('change', () => form.date.setCustomValidity(''));
 form.bucket.addEventListener('change', () => { editBucket = form.bucket.value || null; });
 
 // 체크리스트 (하위 항목) — 저장 버튼 누를 때 반영. 줄을 끌어서 순서 변경, 글자를 누르면 고치기
@@ -661,6 +664,11 @@ form.addEventListener('submit', e => {
     return;
   }
   const one = isSeriesEdit() && editScope === 'one';
+  if (!one && form.freq.value && !form.date.value) {
+    form.date.setCustomValidity('반복하려면 시작 날짜가 필요해요');
+    form.date.reportValidity();
+    return;
+  }
   const it = one ? detach(editing, editingDate) : editing, f = one ? '' : form.freq.value;
   it.title = form.title.value.trim();
   it.date = form.date.value || null;

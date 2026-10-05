@@ -21,6 +21,10 @@
     <button class="btn" id="todayBtn">오늘</button>
   </div>
   <div class="tools">
+    <div class="search">
+      <input type="search" id="searchInput" placeholder="검색 (Ctrl+K)" autocomplete="off">
+      <div class="search-results" id="searchResults" hidden></div>
+    </div>
     <div class="seg" id="viewSeg">
       <button type="button" data-view="calendar">일정</button>
       <button type="button" data-view="board">보드</button>
@@ -130,7 +134,7 @@
         <option value="yearly">매년</option>
         <option value="yearly-lunar">매년 (음력)</option>
       </select>
-      <span class="repeat-opt" id="intervalWrap"><input type="number" name="interval" min="1" value="1"> <span id="intervalUnit"></span>마다</span>
+      <span class="repeat-opt" id="intervalWrap"><input type="number" name="interval" value="1"> <span id="intervalUnit"></span>마다</span>
     </div>
     <div class="row repeat-opt" id="weekdayRow"><label></label><div class="weekday-pick" id="weekdayPick"></div></div>
     <div class="row repeat-opt"><label>종료일</label><input type="date" name="until"><span class="hint">비워두면 계속 반복</span></div>
@@ -194,6 +198,7 @@
 <script src="js/ics.js"></script>
 <script src="js/app.js"></script>
 <script src="js/views.js"></script>
+<script src="js/search.js"></script>
 <script type="module" src="js/sync.js"></script>
 </body>
 </html>
