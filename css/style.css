@@ -16,21 +16,21 @@
   --num-size: 19px;
   --chip-font: 14px;
   --list-font: 15px;
-  color-scheme: light;
+  color-scheme: only light; /* only = 삼성 인터넷 등이 강제로 어둡게 바꾸지 않게 */
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #121214; --surface: #1B1B1E; --surface-2: #222226; --line: #2C2C31;
     --text: #ECECEE; --muted: #8E8E95; --faint: #5C5C63;
     --accent: #7C9BFF; --accent-soft: #232D4A; --sun: #FF6B6F; --sat: #6FA0FF;
-    --shadow: none; color-scheme: dark;
+    --shadow: none; color-scheme: only dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #121214; --surface: #1B1B1E; --surface-2: #222226; --line: #2C2C31;
   --text: #ECECEE; --muted: #8E8E95; --faint: #5C5C63;
   --accent: #7C9BFF; --accent-soft: #232D4A; --sun: #FF6B6F; --sat: #6FA0FF;
-  --shadow: none; color-scheme: dark;
+  --shadow: none; color-scheme: only dark;
 }
 
 * { box-sizing: border-box; }
@@ -606,7 +606,10 @@ textarea:focus { border-color: var(--accent); }
 .spacer { flex: 1; }
 
 .cat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.cat-row input[type="color"] { width: 32px; height: 32px; padding: 0; border: none; background: none; cursor: pointer; }
+.cat-swatch { flex: none; width: 30px; height: 30px; padding: 0; border: 2px solid var(--surface); border-radius: 50%; box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
+.cat-palette { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 12px 38px; }
+.swatch.custom { position: relative; display: grid; place-items: center; background: transparent; box-shadow: inset 0 0 0 2px var(--faint); color: var(--muted); font-size: 16px; }
+.swatch.custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .cat-row input:not([type="color"]) { flex: 1; }
 #addCatBtn { margin-bottom: 14px; }
 

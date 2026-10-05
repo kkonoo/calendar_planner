@@ -763,7 +763,10 @@ $('resetLayoutBtn').addEventListener('click', () => {
 function applyTheme() {
   if (prefs.theme) document.documentElement.dataset.theme = prefs.theme;
   else delete document.documentElement.dataset.theme;
+  // 폰 상단 상태바 색을 지금 배경색에 맞춤
+  $('themeColor').content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
 }
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 function syncUIControls() {
   const u = ui();
   document.querySelectorAll('[data-ui]').forEach(inp => {
@@ -799,13 +802,21 @@ $('themeBtn').addEventListener('click', () => {
 });
 
 // ---------- 설정: 카테고리 ----------
+// 카테고리 색 고르기용 파스텔 팔레트 (마지막 + 는 직접 고르기)
+const PASTELS = [
+  '#F4978E', '#F8B88B', '#F5D27A', '#C5D98F', '#9FCB8E', '#7FCFB8', '#84CDE0', '#8DB6F2',
+  '#A7A3F2', '#B99AF0', '#DDA0E5', '#F3A6C8', '#D2AE8E', '#A88B73', '#9AA5B1', '#C7C1B8',
+];
+let paletteFor = null; // 팔레트를 펼친 카테고리 id
 function renderCatEditor() {
-  $('catEditor').replaceChildren(...db.categories.map(c => {
+  $('catEditor').replaceChildren(...db.categories.flatMap(c => {
     const row = h('div', 'cat-row');
-    const color = h('input');
-    color.type = 'color';
-    color.value = c.color;
-    color.addEventListener('input', () => { c.color = color.value; save(); });
+    const color = h('button', 'cat-swatch');
+    color.type = 'button';
+    color.title = '색 바꾸기';
+    color.style.background = c.color;
+    color.addEventListener('click', () => { paletteFor = paletteFor === c.id ? null : c.id; renderCatEditor(); });
+    const pick = col => { c.color = col; paletteFor = null; save(); renderCatEditor(); };
     const name = h('input');
     name.value = c.name;
     name.addEventListener('change', () => { c.name = name.value.trim() || c.name; save(); });
@@ -819,13 +830,35 @@ function renderCatEditor() {
       renderCatEditor();
     });
     row.append(color, name, del);
-    return row;
+    if (paletteFor !== c.id) return [row];
+
+    const palette = h('div', 'cat-palette');
+    for (const col of PASTELS) {
+      const b = h('button', 'swatch' + (col.toLowerCase() === c.color.toLowerCase() ? ' on' : ''));
+      b.type = 'button';
+      b.style.background = col;
+      b.addEventListener('click', () => pick(col));
+      palette.append(b);
+    }
+    const custom = h('label', 'swatch custom', '+');
+    custom.title = '직접 고르기';
+    const input = h('input');
+    input.type = 'color';
+    input.value = c.color;
+    input.addEventListener('change', () => pick(input.value));
+    custom.append(input);
+    palette.append(custom);
+    return [row, palette];
   }));
 }
 $('settingsBtn').addEventListener('click', () => { renderCatEditor(); syncUIControls(); $('settings').showModal(); });
 $('closeSettingsBtn').addEventListener('click', () => $('settings').close());
 $('addCatBtn').addEventListener('click', () => {
-  db.categories.push({ id: uid(), name: '새 카테고리', color: '#7C8CF8' });
+  // 아직 안 쓴 팔레트 색부터
+  const used = db.categories.map(c => c.color.toLowerCase());
+  const id = uid();
+  db.categories.push({ id, name: '새 카테고리', color: PASTELS.find(p => !used.includes(p.toLowerCase())) || PASTELS[0] });
+  paletteFor = id;
   save();
   renderCatEditor();
 });
