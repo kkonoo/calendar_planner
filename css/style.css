@@ -805,7 +805,7 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
   .task-view { flex-direction: column; gap: 10px; padding: 0 12px 16px; }
   .plan-nav { flex-direction: row; width: auto; overflow-x: auto; }
   .plan { flex: none; }
-  .col { width: 82vw; }
+  .col { width: min(var(--col-w, 290px), 82vw); } /* 설정의 열 너비, 화면보다 넓으면 82%까지 */
   .layout { grid-template-columns: 1fr; gap: 12px; padding: 0 12px 16px; }
   /* 달력은 화면 끝까지, 칸은 내용만큼 늘어나고 제목은 줄바꿈 (최대 3줄) */
   .calendar { margin-inline: -12px; border-radius: 0; border-inline: 0; }
