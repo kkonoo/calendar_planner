@@ -540,24 +540,62 @@ form.freq.addEventListener('change', syncEditor);
 form.date.addEventListener('change', syncEditor);
 form.bucket.addEventListener('change', () => { editBucket = form.bucket.value || null; });
 
-// 체크리스트 (하위 항목) — 저장 버튼 누를 때 반영
+// 체크리스트 (하위 항목) — 저장 버튼 누를 때 반영. 줄을 끌어서 순서 변경, 글자를 누르면 고치기
+let clDragging = null; // 끌고 있는 항목
 function renderChecklist() {
   const n = editChecklist.length;
   $('clCount').textContent = n ? `${editChecklist.filter(c => c.done).length}/${n}` : '';
   $('clList').replaceChildren(...editChecklist.map(c => {
     const li = h('li', c.done ? 'done' : '');
+    li.draggable = true;
     const check = h('button', 'check');
     check.type = 'button';
     check.addEventListener('click', () => { c.done = !c.done; renderChecklist(); });
-    const text = h('input', 'cl-text');
-    text.value = c.text;
-    text.addEventListener('input', () => { c.text = text.value; });
-    text.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('clInput').focus(); } });
+    const text = h('span', 'cl-text', c.text);
+    text.title = '눌러서 고치기 · 끌어서 순서 바꾸기';
+    text.addEventListener('click', () => {
+      li.draggable = false;
+      const input = h('input', 'cl-text');
+      input.value = c.text;
+      text.replaceWith(input);
+      input.focus();
+      let finished = false;
+      const finish = () => { if (finished) return; finished = true; c.text = input.value.trim() || c.text; renderChecklist(); };
+      input.addEventListener('blur', finish);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { e.preventDefault(); input.value = c.text; input.blur(); }
+      });
+    });
     const del = h('button', 'icon-btn small', '✕');
     del.type = 'button';
     del.title = '항목 삭제';
     del.addEventListener('click', () => { editChecklist = editChecklist.filter(x => x !== c); renderChecklist(); });
     li.append(check, text, del);
+
+    const side = e => (e.clientY < li.getBoundingClientRect().top + li.offsetHeight / 2 ? 'before' : 'after');
+    li.addEventListener('dragstart', e => {
+      clDragging = c;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', ''); // 일부 브라우저는 데이터가 있어야 끌기 시작
+      li.classList.add('dragging');
+    });
+    li.addEventListener('dragend', () => { clDragging = null; li.classList.remove('dragging'); });
+    li.addEventListener('dragover', e => {
+      if (!clDragging || clDragging === c) return;
+      e.preventDefault();
+      li.classList.toggle('drop-before', side(e) === 'before');
+      li.classList.toggle('drop-after', side(e) === 'after');
+    });
+    li.addEventListener('dragleave', () => li.classList.remove('drop-before', 'drop-after'));
+    li.addEventListener('drop', e => {
+      if (!clDragging || clDragging === c) return;
+      e.preventDefault();
+      const moving = clDragging, before = side(e) === 'before';
+      editChecklist = editChecklist.filter(x => x !== moving);
+      editChecklist.splice(editChecklist.indexOf(c) + (before ? 0 : 1), 0, moving);
+      renderChecklist();
+    });
     return li;
   }));
 }

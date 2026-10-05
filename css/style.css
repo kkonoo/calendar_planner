@@ -611,7 +611,9 @@ textarea:focus { border-color: var(--accent); }
   outline: none;
 }
 .col-name:hover, .col-name:focus { border-color: var(--line); background: var(--surface); }
-.grip { flex: none; margin: 0 -2px; font-size: 13px; letter-spacing: -3px; color: var(--c); cursor: grab; user-select: none; }
+.col[draggable="true"] { cursor: grab; }
+.col.dragging { opacity: .45; }
+span.col-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: text; user-select: none; }
 .col.drop-before { box-shadow: -4px 0 0 var(--accent); }
 .col.drop-after { box-shadow: 4px 0 0 var(--accent); }
 .col-head .col-del { margin-left: 0; visibility: hidden; }
@@ -699,7 +701,12 @@ textarea:focus { border-color: var(--accent); }
 .cl-head { margin-bottom: 4px; font-size: 13px; color: var(--muted); }
 .checklist ul { list-style: none; margin: 0; padding: 0; }
 .checklist li { --c: var(--accent); display: flex; align-items: center; gap: 8px; padding: 2px 0; }
-.cl-text { flex: 1; padding: 4px 2px; border: none; border-bottom: 1px solid transparent; background: transparent; outline: none; }
+.checklist li[draggable="true"] { cursor: grab; }
+.checklist li.dragging { opacity: .4; }
+.checklist li.drop-before { box-shadow: 0 -2px 0 var(--accent); }
+.checklist li.drop-after { box-shadow: 0 2px 0 var(--accent); }
+.cl-text { flex: 1; min-width: 0; padding: 4px 2px; border: none; border-bottom: 1px solid transparent; background: transparent; outline: none; }
+span.cl-text { cursor: text; user-select: none; word-break: break-word; }
 .cl-text:focus { border-bottom-color: var(--accent); }
 .checklist li.done .cl-text { color: var(--muted); text-decoration: line-through; }
 .checklist .icon-btn.small { margin-left: 0; }

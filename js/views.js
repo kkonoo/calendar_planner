@@ -121,16 +121,19 @@ function column(c, plan) {
   if (c.color) col.style.setProperty('--c', c.color);
 
   const head = h('div', 'col-head');
+  head.append(h('span', 'dot'));
   if (c.group) {
-    // ⋮⋮ 손잡이를 끌어 다른 그룹 열 앞/뒤에 놓으면 순서 변경
-    const grip = h('span', 'grip', '⋮⋮');
-    grip.title = '끌어서 순서 바꾸기';
-    grip.draggable = true;
-    grip.addEventListener('dragstart', e => {
+    // 그룹 열은 통째로 집어서 다른 그룹 열 앞/뒤에 놓으면 순서 변경.
+    // 카드·입력칸·버튼을 누른 경우엔 열이 아니라 그쪽이 동작하게
+    col.draggable = true;
+    col.addEventListener('pointerdown', e => { col.draggable = !e.target.closest('input, button, form, .card'); });
+    col.addEventListener('dragstart', e => {
+      if (e.target !== col) return; // 카드를 끄는 중
       e.dataTransfer.setData(GROUP_DRAG, c.group.id);
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setDragImage(col, 20, 20);
+      col.classList.add('dragging');
     });
+    col.addEventListener('dragend', () => col.classList.remove('dragging'));
     const side = e => (e.clientX < col.getBoundingClientRect().left + col.offsetWidth / 2 ? 'before' : 'after');
     col.addEventListener('dragover', e => {
       if (!isGroupDrag(e)) return;
@@ -145,14 +148,29 @@ function column(c, plan) {
       col.classList.remove('drop-before', 'drop-after');
       moveGroup(c.cat, e.dataTransfer.getData(GROUP_DRAG), c.group.id, side(e) === 'before');
     });
-    head.append(grip);
-  } else head.append(h('span', 'dot'));
-  if (c.group) {
-    const name = h('input', 'col-name');
-    name.value = c.group.name;
-    name.title = '눌러서 이름 바꾸기';
-    name.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) name.blur(); });
-    name.addEventListener('change', () => { c.group.name = name.value.trim() || c.group.name; save(); });
+
+    // 이름은 글자로 보여주고, 누르면 고치는 칸으로 (입력칸이면 열을 집기 어려워서)
+    const name = h('span', 'col-name', c.group.name);
+    name.title = '눌러서 이름 바꾸기 · 끌어서 순서 바꾸기';
+    name.addEventListener('click', () => {
+      const input = h('input', 'col-name');
+      input.value = c.group.name;
+      name.replaceWith(input);
+      input.focus();
+      input.select();
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        c.group.name = input.value.trim() || c.group.name;
+        save();
+      };
+      input.addEventListener('blur', finish);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.isComposing) input.blur();
+        if (e.key === 'Escape') { input.value = c.group.name; input.blur(); }
+      });
+    });
     const del = h('button', 'icon-btn small col-del', '✕');
     del.title = '그룹 삭제';
     del.addEventListener('click', () => {
@@ -222,14 +240,15 @@ function renderBoard() {
     addGroup.addEventListener('click', () => {
       const c = catById(plan), b = { id: uid(), name: '새 그룹' };
       c.buckets = [...(c.buckets || []), b];
-      boardFocus = `.col[data-key="${plan}/${b.id}"] .col-name`;
+      boardFocus = `.col[data-key="${plan}/${b.id}"] .col-name`; // 새 그룹은 바로 이름 고치기
       save();
     });
     board.append(addGroup);
   }
   if (boardFocus) {
     const e = board.querySelector(boardFocus);
-    if (e) { e.focus(); if (e.select) e.select(); }
+    if (e && e.tagName === 'SPAN') e.click(); // 그룹 이름 → 고치는 칸 열기
+    else if (e) e.focus();
     boardFocus = undefined;
   }
 }
