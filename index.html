@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>플래너</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="theme-color" content="#F5F4F0">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-view="calendar">
+
+<header class="topbar">
+  <h1 class="view-title">할 일</h1>
+  <div class="nav">
+    <button class="icon-btn" id="prevBtn" aria-label="이전 달">‹</button>
+    <button class="month-title" id="monthTitle" popovertarget="monthPicker" title="연·월 선택"></button>
+    <button class="icon-btn" id="nextBtn" aria-label="다음 달">›</button>
+    <button class="btn" id="todayBtn">오늘</button>
+  </div>
+  <div class="tools">
+    <div class="seg" id="viewSeg">
+      <button type="button" data-view="calendar">일정</button>
+      <button type="button" data-view="board">보드</button>
+      <button type="button" data-view="table">눈금</button>
+    </div>
+    <button class="btn" id="accountBtn" hidden>로그인</button>
+    <button class="icon-btn" id="themeBtn" title="라이트/다크 전환">◐</button>
+    <button class="btn" id="settingsBtn">설정</button>
+  </div>
+</header>
+
+<div class="month-picker" id="monthPicker" popover>
+  <div class="mp-head">
+    <button class="icon-btn" id="mpPrev" aria-label="이전 해">‹</button>
+    <strong id="mpYear"></strong>
+    <button class="icon-btn" id="mpNext" aria-label="다음 해">›</button>
+  </div>
+  <div class="mp-grid" id="mpGrid"></div>
+</div>
+
+<main class="layout">
+  <section class="calendar">
+    <div class="weekdays"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <aside class="side">
+    <section class="panel">
+      <div class="panel-head">
+        <h2 id="dayTitle"></h2>
+        <span class="holiday-tag" id="dayHoliday"></span>
+        <button class="icon-btn small" id="dayColorBtn" title="날짜 칠하기 (강조)"></button>
+        <button class="icon-btn small" id="dayNewBtn" title="자세히 추가 (반복·D-day)">＋</button>
+      </div>
+      <div class="day-palette" id="dayPalette" hidden></div>
+      <ul class="list" id="dayList"></ul>
+      <form id="dayAdd"><input class="add-input" id="dayInput" placeholder="일정 추가 · 예) 14:00 랩미팅" autocomplete="off"></form>
+      <div class="cat-pick" id="dayCats"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>D-day</h2></div>
+      <ul class="list" id="ddayList"></ul>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>할 일</h2><span class="hint">달력으로 끌어다 놓으면 일정이 돼요</span></div>
+      <ul class="list" id="todoList"></ul>
+      <form id="todoAdd"><input class="add-input" id="todoInput" placeholder="할 일 추가" autocomplete="off"></form>
+    </section>
+  </aside>
+</main>
+
+<main class="board-view" id="boardView"></main>
+
+<main class="table-view">
+  <div class="table-bar">
+    <label class="check-label"><input type="checkbox" id="tableDoneChk"> <span id="tableDoneLabel"></span></label>
+  </div>
+  <div class="table-wrap">
+    <table class="task-table">
+      <thead><tr><th></th><th>작업 이름</th><th>카테고리</th><th>날짜</th><th>체크리스트</th><th>메모</th></tr></thead>
+      <tbody id="taskRows"></tbody>
+    </table>
+    <form id="tableAdd"><input class="add-input" id="tableInput" placeholder="+ 새 작업 추가" autocomplete="off"></form>
+  </div>
+</main>
+
+<dialog id="editor">
+  <form id="editForm">
+    <input name="title" class="title-input" placeholder="제목" required autocomplete="off">
+    <div class="row" id="scopeRow">
+      <label>적용</label>
+      <div class="seg">
+        <button type="button" data-scope="one" id="scopeOneBtn">이 날만</button>
+        <button type="button" data-scope="all">모든 반복</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>날짜</label><input type="date" name="date">
+      <span id="endDateWrap">~ <input type="date" name="endDate" title="여러 날 일정이면 끝나는 날"></span>
+      <span class="hint" id="lunarHint"></span>
+    </div>
+    <div class="row">
+      <label>시간</label>
+      <div class="time-field">
+        <input name="time" placeholder="없음" autocomplete="off">
+        <div class="time-menu" id="timeMenu" hidden></div>
+      </div>
+      <span class="hint">직접 입력도 돼요 · 예) 14:15</span>
+    </div>
+    <div class="row"><label>카테고리</label><div class="cat-pick" id="editCats"></div></div>
+    <div class="row" id="freqRow">
+      <label>반복</label>
+      <select name="freq">
+        <option value="">반복 안 함</option>
+        <option value="daily">매일</option>
+        <option value="weekly">매주</option>
+        <option value="monthly">매월 (같은 날짜)</option>
+        <option value="monthly-nth">매월 (n번째 요일)</option>
+        <option value="yearly">매년</option>
+        <option value="yearly-lunar">매년 (음력)</option>
+      </select>
+      <span class="repeat-opt"><input type="number" name="interval" min="1" value="1"> <span id="intervalUnit"></span>마다</span>
+    </div>
+    <div class="row repeat-opt" id="weekdayRow"><label></label><div class="weekday-pick" id="weekdayPick"></div></div>
+    <div class="row repeat-opt"><label>종료일</label><input type="date" name="until"><span class="hint">비워두면 계속 반복</span></div>
+    <div class="row"><label>D-day</label><label class="check-label"><input type="checkbox" name="dday"> 남은 날짜를 D-day 목록에 표시</label></div>
+    <div class="checklist">
+      <div class="cl-head">체크리스트 <span id="clCount"></span></div>
+      <ul id="clList"></ul>
+      <input class="add-input" id="clInput" placeholder="+ 항목 추가 (Enter)" autocomplete="off">
+    </div>
+    <textarea name="note" placeholder="메모"></textarea>
+    <div class="dialog-actions">
+      <button type="button" class="btn danger" id="delBtn">삭제</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="cancelBtn">취소</button>
+      <button class="btn primary">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="settings">
+  <section id="accountSection" hidden>
+    <h2>계정</h2>
+    <div class="row">
+      <span class="hint" id="accountInfo"></span>
+      <span class="spacer"></span>
+      <button class="btn primary" id="loginBtn">Google로 로그인</button>
+      <button class="btn" id="logoutBtn" hidden>로그아웃</button>
+    </div>
+  </section>
+
+  <h2>화면</h2>
+  <div class="row wide">
+    <label>테마</label>
+    <select id="themeSelect">
+      <option value="">시스템 설정 따름</option>
+      <option value="light">라이트</option>
+      <option value="dark">다크</option>
+    </select>
+  </div>
+  <div class="row wide"><label>날짜 숫자</label><input type="range" min="13" max="28" data-ui="num"><span class="val"></span></div>
+  <div class="row wide"><label>달력 일정 글씨</label><input type="range" min="11" max="18" data-ui="chip"><span class="val"></span></div>
+  <div class="row wide"><label>목록 글씨</label><input type="range" min="13" max="20" data-ui="list"><span class="val"></span></div>
+  <button class="btn" id="resetUIBtn">기본값으로</button>
+
+  <h2>카테고리</h2>
+  <div id="catEditor"></div>
+  <button class="btn" id="addCatBtn">+ 카테고리 추가</button>
+
+  <h2>백업 · 내보내기</h2>
+  <p class="hint">데이터는 이 브라우저에 저장돼요. 브라우저 기록을 지우기 전이나 다른 기기로 옮길 때는 백업 파일을 저장해 두세요.</p>
+  <div class="row">
+    <button class="btn" id="exportBtn">백업 파일 저장 (.json)</button>
+    <label class="btn">불러오기 (백업 · DesktopCal · .ics)<input type="file" id="importFile" accept=".json,.ics" hidden></label>
+  </div>
+  <p class="hint">메일로 받은 일정 초대(.ics)는 파일을 화면에 끌어다 놓아도 돼요.</p>
+  <div class="dialog-actions"><span class="spacer"></span><button class="btn primary" id="closeSettingsBtn">닫기</button></div>
+</dialog>
+
+<script src="js/holidays.js"></script>
+<script src="js/desktopcal.js"></script>
+<script src="js/ics.js"></script>
+<script src="js/app.js"></script>
+<script src="js/views.js"></script>
+<script type="module" src="js/sync.js"></script>
+</body>
+</html>
