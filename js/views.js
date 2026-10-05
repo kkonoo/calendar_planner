@@ -27,10 +27,23 @@ function moveTask(id, cat, bucket) {
   touch(it);
   save();
 }
+const GROUP_DRAG = 'application/x-planner-group'; // 그룹 순서 바꾸기용 (카드 끌기와 구분)
+const isGroupDrag = ev => ev.dataTransfer.types.includes(GROUP_DRAG);
 function dropZone(e, onDrop) {
-  e.addEventListener('dragover', ev => { ev.preventDefault(); e.classList.add('drop'); });
+  e.addEventListener('dragover', ev => { if (isGroupDrag(ev)) return; ev.preventDefault(); e.classList.add('drop'); });
   e.addEventListener('dragleave', ev => { if (!e.contains(ev.relatedTarget)) e.classList.remove('drop'); });
-  e.addEventListener('drop', ev => { ev.preventDefault(); e.classList.remove('drop'); onDrop(dragId(ev)); });
+  e.addEventListener('drop', ev => { if (isGroupDrag(ev)) return; ev.preventDefault(); e.classList.remove('drop'); onDrop(dragId(ev)); });
+}
+// 그룹 fromId 를 toId 앞(before) 또는 뒤로
+function moveGroup(catId, fromId, toId, before) {
+  const cat = catById(catId), list = (cat.buckets || []).slice();
+  const from = list.findIndex(b => b.id === fromId);
+  if (from < 0 || fromId === toId) return;
+  const [g] = list.splice(from, 1);
+  const to = list.findIndex(b => b.id === toId);
+  list.splice(before ? to : to + 1, 0, g);
+  cat.buckets = list;
+  save();
 }
 function dueBadge(it) {
   if (!it.date) return null;
@@ -108,7 +121,32 @@ function column(c, plan) {
   if (c.color) col.style.setProperty('--c', c.color);
 
   const head = h('div', 'col-head');
-  head.append(h('span', 'dot'));
+  if (c.group) {
+    // ⋮⋮ 손잡이를 끌어 다른 그룹 열 앞/뒤에 놓으면 순서 변경
+    const grip = h('span', 'grip', '⋮⋮');
+    grip.title = '끌어서 순서 바꾸기';
+    grip.draggable = true;
+    grip.addEventListener('dragstart', e => {
+      e.dataTransfer.setData(GROUP_DRAG, c.group.id);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setDragImage(col, 20, 20);
+    });
+    const side = e => (e.clientX < col.getBoundingClientRect().left + col.offsetWidth / 2 ? 'before' : 'after');
+    col.addEventListener('dragover', e => {
+      if (!isGroupDrag(e)) return;
+      e.preventDefault();
+      col.classList.toggle('drop-before', side(e) === 'before');
+      col.classList.toggle('drop-after', side(e) === 'after');
+    });
+    col.addEventListener('dragleave', e => { if (!col.contains(e.relatedTarget)) col.classList.remove('drop-before', 'drop-after'); });
+    col.addEventListener('drop', e => {
+      if (!isGroupDrag(e)) return;
+      e.preventDefault();
+      col.classList.remove('drop-before', 'drop-after');
+      moveGroup(c.cat, e.dataTransfer.getData(GROUP_DRAG), c.group.id, side(e) === 'before');
+    });
+    head.append(grip);
+  } else head.append(h('span', 'dot'));
   if (c.group) {
     const name = h('input', 'col-name');
     name.value = c.group.name;

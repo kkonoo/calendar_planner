@@ -611,6 +611,9 @@ textarea:focus { border-color: var(--accent); }
   outline: none;
 }
 .col-name:hover, .col-name:focus { border-color: var(--line); background: var(--surface); }
+.grip { flex: none; margin: 0 -2px; font-size: 13px; letter-spacing: -3px; color: var(--c); cursor: grab; user-select: none; }
+.col.drop-before { box-shadow: -4px 0 0 var(--accent); }
+.col.drop-after { box-shadow: 4px 0 0 var(--accent); }
 .col-head .col-del { margin-left: 0; visibility: hidden; }
 .col:hover .col-del { visibility: visible; }
 .add-group {
