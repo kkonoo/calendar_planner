@@ -218,6 +218,7 @@ body[data-view="board"] .table-view, body[data-view="table"] .board { display: n
 
 /* ---------- 달력 ---------- */
 .calendar {
+  position: relative; /* 폰에서 밀 때 옆 달 미리 보기(.grid.peek) 자리 */
   display: flex;
   flex-direction: column;
   min-height: 0;
