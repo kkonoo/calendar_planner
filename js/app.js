@@ -932,6 +932,18 @@ addEventListener('drop', e => {
 // ---------- 시작 ----------
 $('prevBtn').addEventListener('click', () => shiftMonth(-1));
 $('nextBtn').addEventListener('click', () => shiftMonth(1));
+// 폰: 달력을 왼쪽으로 밀면 다음 달, 오른쪽으로 밀면 이전 달 (세로 스크롤은 그대로)
+let swipe = null;
+$('grid').addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  swipe = e.touches.length === 1 ? { x: t.clientX, y: t.clientY } : null;
+}, { passive: true });
+$('grid').addEventListener('touchend', e => {
+  if (!swipe) return;
+  const t = e.changedTouches[0], dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+  swipe = null;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) shiftMonth(dx < 0 ? 1 : -1);
+});
 $('todayBtn').addEventListener('click', () => select(todayStr()));
 let resizeTimer;
 addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderGrid, 150); });
