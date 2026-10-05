@@ -933,17 +933,44 @@ addEventListener('drop', e => {
 $('prevBtn').addEventListener('click', () => shiftMonth(-1));
 $('nextBtn').addEventListener('click', () => shiftMonth(1));
 // 폰: 달력을 왼쪽으로 밀면 다음 달, 오른쪽으로 밀면 이전 달 (세로 스크롤은 그대로)
+// 미는 동안 손가락을 따라 움직이고, 놓으면 밀던 쪽으로 빠지고 새 달이 반대쪽에서 들어옴
 let swipe = null;
+const slideGrid = x => new Promise(done => {
+  const g = $('grid');
+  g.style.transition = 'transform .18s ease-out';
+  g.style.transform = x ? `translateX(${x}px)` : '';
+  setTimeout(done, 180);
+});
 $('grid').addEventListener('touchstart', e => {
   const t = e.touches[0];
-  swipe = e.touches.length === 1 ? { x: t.clientX, y: t.clientY } : null;
+  swipe = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, dx: 0, side: null } : null;
 }, { passive: true });
-$('grid').addEventListener('touchend', e => {
+$('grid').addEventListener('touchmove', e => {
   if (!swipe) return;
-  const t = e.changedTouches[0], dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+  const t = e.touches[0], dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+  // 처음 10px 움직인 방향으로 가로 밀기인지 세로 스크롤인지 정함
+  if (swipe.side === null && Math.hypot(dx, dy) > 10) swipe.side = Math.abs(dx) > Math.abs(dy) * 1.5;
+  if (!swipe.side) return;
+  swipe.dx = dx;
+  $('grid').style.transition = 'none';
+  $('grid').style.transform = `translateX(${dx}px)`;
+}, { passive: true });
+const endSwipe = async cancel => {
+  if (!swipe) return;
+  const { dx, side } = swipe;
   swipe = null;
-  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) shiftMonth(dx < 0 ? 1 : -1);
-});
+  if (!side) return;
+  if (cancel || Math.abs(dx) < 60) return slideGrid(0); // 조금만 밀었거나 중간에 끊기면 제자리로
+  const d = dx < 0 ? 1 : -1, w = $('grid').offsetWidth;
+  await slideGrid(-d * w);
+  shiftMonth(d);
+  $('grid').style.transition = 'none';
+  $('grid').style.transform = `translateX(${d * w}px)`;
+  $('grid').offsetWidth; // 위치를 먼저 적용해야 들어오는 움직임이 보임
+  slideGrid(0);
+};
+$('grid').addEventListener('touchend', () => endSwipe(false));
+$('grid').addEventListener('touchcancel', () => endSwipe(true));
 $('todayBtn').addEventListener('click', () => select(todayStr()));
 let resizeTimer;
 addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderGrid, 150); });
