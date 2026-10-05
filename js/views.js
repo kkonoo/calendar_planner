@@ -34,6 +34,16 @@ function dropZone(e, onDrop) {
   e.addEventListener('dragleave', ev => { if (!e.contains(ev.relatedTarget)) e.classList.remove('drop'); });
   e.addEventListener('drop', ev => { if (isGroupDrag(ev)) return; ev.preventDefault(); e.classList.remove('drop'); onDrop(dragId(ev)); });
 }
+// 그룹을 통째로 다른 카테고리로 (안의 항목도 같이, 그룹은 그 카테고리 맨 뒤에)
+function moveGroupToCat(groupId, toCat) {
+  const from = db.categories.find(c => (c.buckets || []).some(b => b.id === groupId)), to = catById(toCat);
+  if (!from || !to || from === to) return;
+  const g = from.buckets.find(b => b.id === groupId);
+  from.buckets = from.buckets.filter(b => b !== g);
+  to.buckets = [...(to.buckets || []), g];
+  db.items.forEach(i => { if (i.cat === from.id && i.bucket === groupId) { i.cat = toCat; touch(i); } });
+  save();
+}
 // 그룹 fromId 를 toId 앞(before) 또는 뒤로
 function moveGroup(catId, fromId, toId, before) {
   const cat = catById(catId), list = (cat.buckets || []).slice();
@@ -73,6 +83,16 @@ function renderPlanNav() {
     b.addEventListener('click', () => { prefs.plan = p.key; savePrefs(); render(); });
     // 탭에 카드를 끌어다 놓으면 그 카테고리로
     if (p.key !== 'all') dropZone(b, id => moveTask(id, p.key === 'none' ? null : p.key));
+    // 그룹 열을 다른 카테고리 탭에 놓으면 그룹째로 옮김
+    if (p.key !== 'all' && p.key !== 'none' && p.key !== cur) {
+      b.addEventListener('dragover', e => { if (!isGroupDrag(e)) return; e.preventDefault(); b.classList.add('drop'); });
+      b.addEventListener('drop', e => {
+        if (!isGroupDrag(e)) return;
+        e.preventDefault();
+        b.classList.remove('drop');
+        moveGroupToCat(e.dataTransfer.getData(GROUP_DRAG), p.key);
+      });
+    }
     return b;
   }));
 }
