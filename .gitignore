@@ -4,3 +4,6 @@ data/
 
 # 로컬 개발 설정
 .claude/
+
+# 직접 만든 원본 로고 (사이트에는 안 씀)
+icons/icon.png
