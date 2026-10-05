@@ -470,7 +470,16 @@ const editor = $('editor'), form = $('editForm');
 let editing = null, editingDate = null, editCat = null, editBucket = null, editDays = [], editScope = 'all', editChecklist = [];
 // 이미 저장된 반복 일정을 특정 날짜에서 연 경우 → '이 날만 / 모든 반복' 선택
 const isSeriesEdit = () => !!(editing.repeat && editingDate && db.items.includes(editing));
-const freqOf = r => !r ? '' : r.freq === 'monthly' && r.nth ? 'monthly-nth' : r.freq === 'yearly' && r.lunar ? 'yearly-lunar' : r.freq;
+// 저장된 반복 → 편집 창 '반복' 선택값 (분기·반기 = 3·6개월마다 같은 날짜)
+const FIXED_MONTHS = { quarterly: 3, half: 6 };
+function freqOf(r) {
+  if (!r) return '';
+  if (r.freq === 'monthly' && r.nth) return 'monthly-nth';
+  if (r.freq === 'monthly' && r.interval === 3) return 'quarterly';
+  if (r.freq === 'monthly' && r.interval === 6) return 'half';
+  if (r.freq === 'yearly' && r.lunar) return 'yearly-lunar';
+  return r.freq;
+}
 
 function openEditor(it, s, presetDate) {
   editing = it;
@@ -524,8 +533,18 @@ function syncEditor() {
   $('endDateWrap').hidden = !!f; // 며칠짜리 일정은 반복 없을 때만
   $('weekdayRow').hidden = f !== 'weekly';
   $('intervalUnit').textContent = { daily: '일', weekly: '주', monthly: '개월', 'monthly-nth': '개월', yearly: '년', 'yearly-lunar': '년' }[f] || '';
-  const lu = f === 'yearly-lunar' && form.date.value ? lunar(form.date.value) : null;
-  $('lunarHint').textContent = lu ? `음력 ${lu.leap ? '윤' : ''}${lu.m}월 ${lu.d}일` : '';
+  $('intervalWrap').hidden = !f || !!FIXED_MONTHS[f]; // 분기·반기는 간격 고정
+  // 날짜 옆 안내: 음력 날짜, 또는 분기·반기면 반복되는 달 (예: 1·4·7·10월 15일)
+  let hint = '';
+  if (form.date.value && f === 'yearly-lunar') {
+    const lu = lunar(form.date.value);
+    hint = `음력 ${lu.leap ? '윤' : ''}${lu.m}월 ${lu.d}일`;
+  } else if (form.date.value && FIXED_MONTHS[f]) {
+    const [, m, d] = ymd(form.date.value), step = FIXED_MONTHS[f];
+    const months = Array.from({ length: 12 / step }, (_, k) => (m - 1 + k * step) % 12 + 1).sort((a, b) => a - b);
+    hint = `${months.join('·')}월 ${d}일`;
+  }
+  $('repeatHint').textContent = hint;
   $('weekdayPick').replaceChildren(...WD.map((w, i) => {
     const b = h('button', editDays.includes(i) ? 'on' : '', w);
     b.type = 'button';
@@ -654,8 +673,9 @@ form.addEventListener('submit', e => {
   it.checklist = editChecklist.filter(c => c.text.trim());
   if (!f || !it.date) it.repeat = null;
   else {
-    const freq = { 'monthly-nth': 'monthly', 'yearly-lunar': 'yearly' }[f] || f;
-    it.repeat = { freq, interval: Math.max(1, +form.interval.value || 1), until: form.until.value || null };
+    const freq = { 'monthly-nth': 'monthly', 'yearly-lunar': 'yearly', quarterly: 'monthly', half: 'monthly' }[f] || f;
+    const interval = FIXED_MONTHS[f] || Math.max(1, +form.interval.value || 1);
+    it.repeat = { freq, interval, until: form.until.value || null };
     if (f === 'monthly-nth') it.repeat.nth = true;
     if (f === 'yearly-lunar') it.repeat.lunar = true;
     if (f === 'weekly') it.repeat.days = editDays.length ? editDays : [weekday(toNum(it.date))];

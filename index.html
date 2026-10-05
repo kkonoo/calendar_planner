@@ -105,7 +105,7 @@
     <div class="row">
       <label>날짜</label><input type="date" name="date">
       <span id="endDateWrap">~ <input type="date" name="endDate" title="여러 날 일정이면 끝나는 날"></span>
-      <span class="hint" id="lunarHint"></span>
+      <span class="hint" id="repeatHint"></span>
     </div>
     <div class="row">
       <label>시간</label>
@@ -125,10 +125,12 @@
         <option value="weekly">매주</option>
         <option value="monthly">매월 (같은 날짜)</option>
         <option value="monthly-nth">매월 (n번째 요일)</option>
+        <option value="quarterly">분기마다 (3개월)</option>
+        <option value="half">반기마다 (상·하반기)</option>
         <option value="yearly">매년</option>
         <option value="yearly-lunar">매년 (음력)</option>
       </select>
-      <span class="repeat-opt"><input type="number" name="interval" min="1" value="1"> <span id="intervalUnit"></span>마다</span>
+      <span class="repeat-opt" id="intervalWrap"><input type="number" name="interval" min="1" value="1"> <span id="intervalUnit"></span>마다</span>
     </div>
     <div class="row repeat-opt" id="weekdayRow"><label></label><div class="weekday-pick" id="weekdayPick"></div></div>
     <div class="row repeat-opt"><label>종료일</label><input type="date" name="until"><span class="hint">비워두면 계속 반복</span></div>
