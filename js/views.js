@@ -34,14 +34,19 @@ function dropZone(e, onDrop) {
   e.addEventListener('dragleave', ev => { if (!e.contains(ev.relatedTarget)) e.classList.remove('drop'); });
   e.addEventListener('drop', ev => { if (isGroupDrag(ev)) return; ev.preventDefault(); e.classList.remove('drop'); onDrop(dragId(ev)); });
 }
-// 그룹을 통째로 다른 카테고리로 (안의 항목도 같이, 그룹은 그 카테고리 맨 뒤에)
+// 그룹을 통째로 다른 카테고리로 (안의 항목도 같이).
+// 옮긴 곳에 같은 이름 그룹이 있으면 그 그룹에 합치고, 없으면 맨 뒤에 새 열로
 function moveGroupToCat(groupId, toCat) {
   const from = db.categories.find(c => (c.buckets || []).some(b => b.id === groupId)), to = catById(toCat);
   if (!from || !to || from === to) return;
   const g = from.buckets.find(b => b.id === groupId);
+  const sameName = b => b.name.trim().toLowerCase() === g.name.trim().toLowerCase();
+  const target = (to.buckets || []).find(sameName);
   from.buckets = from.buckets.filter(b => b !== g);
-  to.buckets = [...(to.buckets || []), g];
-  db.items.forEach(i => { if (i.cat === from.id && i.bucket === groupId) { i.cat = toCat; touch(i); } });
+  if (!target) to.buckets = [...(to.buckets || []), g];
+  db.items.forEach(i => {
+    if (i.cat === from.id && i.bucket === groupId) { i.cat = toCat; i.bucket = target ? target.id : groupId; touch(i); }
+  });
   save();
 }
 // 그룹 fromId 를 toId 앞(before) 또는 뒤로
