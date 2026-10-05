@@ -124,7 +124,7 @@ function renderPlanNav() {
   const cur = currentPlan();
   $('planNav').replaceChildren(...plans.map(p => {
     const b = h('button', `plan${p.key === cur ? ' on' : ''}${p.key === 'all' ? ' all' : ''}`);
-    if (p.color) b.style.setProperty('--c', p.color);
+    if (p.color) b.style.setProperty('--c', tone(p.color));
     const n = open.filter(it => inPlan(it, p.key)).length;
     b.append(h('span', 'dot'), h('span', 'plan-name', p.name), h('span', 'count', n || ''));
     b.addEventListener('click', () => { prefs.plan = p.key; savePrefs(); render(); });
@@ -208,7 +208,7 @@ function column(c, plan) {
   const key = `${plan}/${c.key}`;
   const col = h('section', 'col');
   col.dataset.key = key;
-  if (c.color) col.style.setProperty('--c', c.color);
+  if (c.color) col.style.setProperty('--c', tone(c.color));
 
   const head = h('div', 'col-head');
   head.append(h('span', 'dot'));

@@ -16,6 +16,10 @@
   --num-size: 19px;
   --chip-font: 14px;
   --list-font: 15px;
+  /* 카테고리·날짜 색: 다크 모드에서 더 밝고 진하게 */
+  --lift: 0%;  /* 흰색을 섞는 양 (app.js tone) */
+  --tint: 16%; /* 일정 칩 배경 */
+  --fill: 42%; /* 날짜 칸 칠하기·여러 날 일정 */
   color-scheme: only light; /* only = 삼성 인터넷 등이 강제로 어둡게 바꾸지 않게 */
 }
 @media (prefers-color-scheme: dark) {
@@ -24,6 +28,7 @@
     --text: #ECECEE; --muted: #8E8E95; --faint: #5C5C63;
     --accent: #7C9BFF; --accent-soft: #232D4A; --sun: #FF6B6F; --sat: #6FA0FF;
     --shadow: none; color-scheme: only dark;
+    --lift: 35%; --tint: 30%; --fill: 50%;
   }
 }
 :root[data-theme="dark"] {
@@ -31,6 +36,7 @@
   --text: #ECECEE; --muted: #8E8E95; --faint: #5C5C63;
   --accent: #7C9BFF; --accent-soft: #232D4A; --sun: #FF6B6F; --sat: #6FA0FF;
   --shadow: none; color-scheme: only dark;
+  --lift: 35%; --tint: 30%; --fill: 50%;
 }
 
 * { box-sizing: border-box; }
@@ -257,9 +263,11 @@ body[data-view="board"] .table-view, body[data-view="table"] .board { display: n
 .cell:hover { background: var(--surface-2); }
 .cell.out { background: var(--surface-2); }
 .cell.out > * { opacity: .45; }
-.cell.hl { background: color-mix(in srgb, var(--hl) 42%, var(--surface)); } /* 날짜 칠하기 */
-.cell.hl:hover { background: color-mix(in srgb, var(--hl) 52%, var(--surface)); }
+.cell.hl { background: color-mix(in srgb, var(--hl) var(--fill), var(--surface)); } /* 날짜 칠하기 */
+.cell.hl:hover { background: color-mix(in srgb, var(--hl) calc(var(--fill) + 10%), var(--surface)); }
 .cell.hl .num { font-weight: 800; }
+.cell.span { background: color-mix(in srgb, var(--sp) var(--fill), var(--surface)); } /* 여러 날 일정 기간 */
+.cell.span:hover { background: color-mix(in srgb, var(--sp) calc(var(--fill) + 10%), var(--surface)); }
 .cell.sel { box-shadow: inset 0 0 0 2px var(--accent); }
 .cell.drop { background: var(--accent-soft); }
 
@@ -279,8 +287,8 @@ body[data-view="board"] .table-view, body[data-view="table"] .board { display: n
 .cell.today .num { background: var(--accent); color: #fff; }
 .hol { font-size: 11px; color: var(--sun); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* 일정 = 색 배경 + 동그라미, 할 일 = 배경 없음 + 네모, 여러 날 = 이어진 막대 */
-.chip, .span-bar {
+/* 일정 = 색 배경 + 동그라미, 할 일 = 배경 없음 + 네모, 여러 날 = 날짜 칸을 칠하고 첫날에 제목 */
+.chip {
   --c: var(--faint);
   padding: 0 5px;
   border-radius: 5px;
@@ -291,23 +299,10 @@ body[data-view="board"] .table-view, body[data-view="table"] .board { display: n
   text-overflow: ellipsis;
   cursor: pointer;
 }
-.chip { flex: none; background: color-mix(in srgb, var(--c) 16%, transparent); }
-.chip:hover { background: color-mix(in srgb, var(--c) 28%, transparent); }
+.chip { flex: none; background: color-mix(in srgb, var(--c) var(--tint), transparent); }
+.chip:hover { background: color-mix(in srgb, var(--c) calc(var(--tint) + 12%), transparent); }
 .chip.task { padding-left: 3px; background: none; }
 .chip.task:hover { background: color-mix(in srgb, var(--c) 14%, transparent); }
-
-.span-bar {
-  position: relative;
-  z-index: 1;
-  align-self: start;
-  margin-inline: 6px;
-  background: color-mix(in srgb, var(--c) 32%, var(--surface));
-  font-weight: 500;
-}
-.span-bar:hover { background: color-mix(in srgb, var(--c) 45%, var(--surface)); }
-.span-bar.cont-l { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
-.span-bar.cont-r { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
-.span-space { flex: none; }
 
 .box {
   position: relative;
@@ -334,14 +329,14 @@ body[data-view="board"] .table-view, body[data-view="table"] .board { display: n
   border-width: 0 1.5px 1.5px 0;
   transform: rotate(45deg);
 }
-.chip .t, .span-bar .t {
+.chip .t {
   margin-right: 4px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--c) 55%, var(--text));
 }
-.chip.done, .span-bar.done { opacity: .45; text-decoration: line-through; }
-.chip[draggable="true"], .span-bar[draggable="true"] { cursor: grab; }
+.chip.done { opacity: .45; text-decoration: line-through; }
+.chip[draggable="true"] { cursor: grab; }
 .more { font-size: 12px; color: var(--muted); padding-left: 6px; }
 
 /* ---------- 사이드바 ---------- */
@@ -808,8 +803,11 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
   .cell { padding: 2px 1px; }
   .cell-head { height: calc(var(--num-size) * 1.5); }
   .num { width: calc(var(--num-size) * 1.5); height: calc(var(--num-size) * 1.5); font-size: calc(var(--num-size) * .85); }
-  .chip, .span-bar { font-size: calc(var(--chip-font) * .78); line-height: 1.35; padding: 1px 2px; border-radius: 3px; }
   .chip {
+    font-size: calc(var(--chip-font) * .78);
+    line-height: 1.35;
+    padding: 1px 2px;
+    border-radius: 3px;
     white-space: normal;
     overflow-wrap: anywhere;
     display: -webkit-box;
@@ -817,8 +815,7 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
     -webkit-line-clamp: 3;
   }
   .chip.task { padding-left: 3px; border-left: 2px solid var(--c); background: color-mix(in srgb, var(--c) 7%, transparent); }
-  .span-bar { margin-inline: 2px; }
   .box { display: none; } /* 폭이 좁아 체크 칸은 숨김 — 체크는 아래 날짜 목록에서 */
-  .chip .t, .span-bar .t { margin-right: 3px; }
+  .chip .t { margin-right: 3px; }
   .hol { display: none; }
 }

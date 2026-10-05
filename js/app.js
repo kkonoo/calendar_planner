@@ -155,7 +155,9 @@ function h(tag, cls, text) {
   if (text != null) e.textContent = text;
   return e;
 }
-const setColor = (e, cat) => { const c = catColor(cat); if (c) e.style.setProperty('--c', c); };
+// 다크 모드에서는 같은 색을 밝게 (--lift: 라이트 0%, 다크 35%) — 테마를 바꿔도 다시 그릴 필요 없음
+const tone = c => `color-mix(in srgb, ${c}, #fff var(--lift))`;
+const setColor = (e, cat) => { const c = catColor(cat); if (c) e.style.setProperty('--c', tone(c)); };
 
 let selected = todayStr();
 let view = { y: ymd(selected)[0], m: ymd(selected)[1] };
@@ -229,17 +231,19 @@ function renderGrid() {
   grid.style.gridTemplateRows = phone ? '' : `repeat(${weeks}, minmax(0, 1fr))`;
   grid.replaceChildren();
 
+  // 여러 날 일정: 기간 동안 날짜 칸을 그 색으로 칠하고 (겹치면 먼저 시작한 것), 제목은 첫날과 각 주 첫 칸에만
+  const spans = live().filter(isSpan).sort((a, b) => a.date.localeCompare(b.date) || b.endDate.localeCompare(a.endDate));
   const cells = [];
   for (let i = 0; i < weeks * 7; i++) {
     const s = toStr(start + i), [, m, d] = ymd(s), hol = HOLIDAYS[s];
     const cell = h('div', 'cell');
-    cell.style.gridArea = `${Math.floor(i / 7) + 1} / ${i % 7 + 1}`; // 여러 날 막대를 같은 칸에 겹쳐 놓으려고 위치 고정
     if (m !== view.m) cell.classList.add('out');
     if (s === today) cell.classList.add('today');
     if (s === selected) cell.classList.add('sel');
     if (i % 7 === 0 || hol) cell.classList.add('sun'); else if (i % 7 === 6) cell.classList.add('sat');
-    const hl = (db.dayColors || {})[s];
-    if (hl) { cell.classList.add('hl'); cell.style.setProperty('--hl', hl); }
+    const hl = (db.dayColors || {})[s], on = spans.filter(it => it.date <= s && it.endDate >= s);
+    if (hl) { cell.classList.add('hl'); cell.style.setProperty('--hl', tone(hl)); }
+    else if (on.length) { cell.classList.add('span'); cell.style.setProperty('--sp', tone(catColor(on[0].cat) || 'var(--faint)')); }
 
     const head = h('div', 'cell-head');
     head.append(h('span', 'num', d));
@@ -249,7 +253,7 @@ function renderGrid() {
     cell.addEventListener('click', () => cellClick(s));
     dropTarget(cell, s);
     grid.append(cell);
-    cells.push([cell, s]);
+    cells.push([cell, s, on]);
   }
 
   // 한 줄 높이는 실제로 재서 계산 → 칸에 들어가는 줄 수
@@ -260,35 +264,12 @@ function renderGrid() {
   const top = head.offsetTop + head.offsetHeight + 2;
   const room = phone ? Infinity : Math.max(1, Math.floor((cell0.clientHeight - top - 2) / lineH));
 
-  // 여러 날 일정: 주(줄)마다 막대로 그리고, 겹치면 아래 줄로
-  const spans = live().filter(isSpan);
-  for (let w = 0; w < weeks; w++) {
-    const w0 = start + w * 7, w6 = w0 + 6, lanes = [], used = [0, 0, 0, 0, 0, 0, 0];
-    spans.filter(it => toNum(it.date) <= w6 && toNum(it.endDate) >= w0)
-      .sort((a, b) => a.date.localeCompare(b.date) || b.endDate.localeCompare(a.endDate))
-      .forEach(it => {
-        const from = Math.max(toNum(it.date), w0) - w0, to = Math.min(toNum(it.endDate), w6) - w0;
-        let k = lanes.findIndex(end => end < from);
-        if (k < 0) k = lanes.length;
-        lanes[k] = to;
-        for (let c = from; c <= to; c++) used[c] = Math.max(used[c], k + 1);
-        grid.append(spanBar(it, w, from, to, top + k * lineH, toNum(it.date) < w0, toNum(it.endDate) > w6));
-      });
-
-    for (let c = 0; c < 7; c++) {
-      const [cell, s] = cells[w * 7 + c];
-      if (used[c]) {
-        const space = h('div', 'span-space');
-        space.style.height = `${used[c] * lineH - 2}px`;
-        cell.append(space);
-      }
-      const items = itemsOn(s).filter(it => !isSpan(it));
-      const free = Math.max(0, room - used[c]);
-      const shown = items.length > free ? Math.max(0, free - 1) : free;
-      for (const it of items.slice(0, shown)) cell.append(chip(it, s));
-      if (items.length > shown) cell.append(h('div', 'more', `+${items.length - shown}개 더`));
-    }
-  }
+  cells.forEach(([cell, s, on], i) => {
+    const items = [...on.filter(it => it.date === s || i % 7 === 0), ...itemsOn(s).filter(it => !isSpan(it))];
+    const shown = items.length > room ? Math.max(0, room - 1) : room;
+    for (const it of items.slice(0, shown)) cell.append(chip(it, isSpan(it) ? it.date : s));
+    if (items.length > shown) cell.append(h('div', 'more', `+${items.length - shown}개 더`));
+  });
 }
 
 // 날짜 칸: 한 번 클릭 = 선택, 두 번 클릭 = 새 일정 창
@@ -315,20 +296,6 @@ function chip(it, s) {
   e.title = (it.time ? it.time + ' ' : '') + it.title;
   e.addEventListener('click', ev => { ev.stopPropagation(); openEditor(it, s); });
   draggable(e, it, s);
-  return e;
-}
-
-function spanBar(it, w, from, to, top, contLeft, contRight) {
-  const e = h('div', 'span-bar' + (isDone(it) ? ' done' : '') + (contLeft ? ' cont-l' : '') + (contRight ? ' cont-r' : ''));
-  e.style.gridArea = `${w + 1} / ${from + 1} / ${w + 2} / ${to + 2}`;
-  e.style.marginTop = `${top}px`;
-  setColor(e, it.cat);
-  e.append(checkBox(it, it.date));
-  if (it.time) e.append(h('span', 't', it.time));
-  e.append(it.title);
-  e.title = `${fmtMD(it.date)}~${fmtMD(it.endDate)} ${it.title}`;
-  e.addEventListener('click', ev => { ev.stopPropagation(); openEditor(it, it.date); });
-  draggable(e, it, it.date);
   return e;
 }
 
@@ -360,7 +327,7 @@ function setDayColor(s, color) {
 function renderDayPalette() {
   const cur = (db.dayColors || {})[selected] || null;
   $('dayColorBtn').classList.toggle('on', !!cur);
-  if (cur) $('dayColorBtn').style.setProperty('--hl', cur);
+  if (cur) $('dayColorBtn').style.setProperty('--hl', tone(cur));
   $('dayPalette').replaceChildren(...[null, ...DAY_COLORS].map(c => {
     const b = h('button', 'swatch' + (c ? '' : ' none') + (c === cur ? ' on' : ''));
     b.type = 'button';
@@ -414,7 +381,7 @@ function renderCatPick(box, current, onPick) {
   box.replaceChildren(...opts.map(c => {
     const b = h('button', 'cat-pill' + (c.id === current ? ' on' : ''), c.name);
     b.type = 'button';
-    if (c.color) b.style.setProperty('--c', c.color);
+    if (c.color) b.style.setProperty('--c', tone(c.color));
     b.addEventListener('click', () => onPick(c.id));
     return b;
   }));
