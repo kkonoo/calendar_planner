@@ -709,14 +709,57 @@ $('delBtn').addEventListener('click', () => {
 $('dayNewBtn').addEventListener('click', () => openEditor(newItem({ date: selected, cat: prefs.cat || null }), selected));
 
 // ---------- 설정: 화면 ----------
-const UI_DEFAULT = { num: 19, chip: 14, list: 15 };
+const UI_DEFAULT = { num: 19, chip: 14, list: 15, col: 290 };
 const ui = () => ({ ...UI_DEFAULT, ...prefs.ui });
 function applyUI() {
   const u = ui(), s = document.documentElement.style;
   s.setProperty('--num-size', `${u.num}px`);
   s.setProperty('--chip-font', `${u.chip}px`);
   s.setProperty('--list-font', `${u.list}px`);
+  s.setProperty('--col-w', `${u.col}px`);
 }
+
+// ---------- 달력 화면 패널 크기 (경계를 마우스로 끌기) ----------
+// prefs.layout = { sideW: 오른쪽 패널 너비, dayPanel / ddayPanel: 패널 높이 } (없으면 기본 크기)
+function applyLayout() {
+  const l = prefs.layout || {};
+  $('layout').style.setProperty('--side-w', l.sideW ? `${l.sideW}px` : '');
+  for (const id of ['dayPanel', 'ddayPanel']) $(id).style.flexBasis = l[id] ? `${l[id]}px` : '';
+}
+function dragHandle(handle, onMove) {
+  handle.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    handle.classList.add('active');
+    const move = ev => { onMove(ev); applyLayout(); };
+    const up = () => {
+      handle.classList.remove('active');
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      savePrefs();
+      renderGrid();
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+  });
+}
+// 달력 ↔ 오른쪽 패널 너비
+dragHandle($('sideSplit'), e => {
+  const right = $('layout').getBoundingClientRect().right - 24; // 오른쪽 여백
+  const max = Math.max(300, (right - 24) * 0.6);
+  prefs.layout = { ...prefs.layout, sideW: Math.round(Math.min(Math.max(right - e.clientX - 8, 260), max)) };
+});
+// 일정 / D-day 패널 높이 (할 일 패널은 남은 공간)
+document.querySelectorAll('.splitter.h').forEach(s => dragHandle(s, e => {
+  const top = $(s.dataset.panel).getBoundingClientRect().top;
+  prefs.layout = { ...prefs.layout, [s.dataset.panel]: Math.round(Math.max(e.clientY - top - 8, 90)) };
+}));
+$('resetLayoutBtn').addEventListener('click', () => {
+  delete prefs.layout;
+  savePrefs();
+  applyLayout();
+  renderGrid();
+});
 function applyTheme() {
   if (prefs.theme) document.documentElement.dataset.theme = prefs.theme;
   else delete document.documentElement.dataset.theme;
@@ -858,6 +901,7 @@ addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setT
 
 applyTheme();
 applyUI();
+applyLayout();
 addEventListener('DOMContentLoaded', render); // views.js 까지 읽은 뒤 그리기
 
 // 앱 설치(PWA)·오프라인용. 파일을 더블클릭해서 연 경우(file://)엔 동작 안 함

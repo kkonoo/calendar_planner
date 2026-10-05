@@ -1,9 +1,9 @@
 'use strict';
 // 할 일 자세히 보기: 보드 / 눈금(표). 왼쪽 탭 = 카테고리, 보드의 열 = 카테고리 안의 그룹. (app.js 의 함수·데이터를 사용)
-// 대상: 시간 없는 항목(= 할 일). 반복 할 일은 '오늘 이후 아직 안 한 가장 가까운 날'로 보여줌.
-// 시간 있는 일정·여러 날 일정은 달력에서만.
+// 대상: 시간 없는 항목(= 할 일, 여러 날짜 포함). 반복 할 일은 '오늘 이후 아직 안 한 가장 가까운 날'로 보여줌.
+// 시간 있는 일정은 달력에서만.
 // 그룹은 category.buckets = [{ id, name }], 할 일의 그룹은 item.bucket, 열 안의 순서는 item.order
-const isTask = it => !it.time && !isSpan(it);
+const isTask = it => !it.time;
 const tasks = () => live().filter(isTask);
 
 let nextCache = new Map(); // 그릴 때마다 비움
@@ -93,10 +93,13 @@ function moveGroup(catId, fromId, toId, before) {
   cat.buckets = list;
   save();
 }
+// 마감 지남: 끝나는 날(여러 날이면 마지막 날)이 오늘보다 전
+const isLate = it => !taskDone(it) && !!taskDate(it) && (isSpan(it) ? it.endDate : taskDate(it)) < todayStr();
 function dueBadge(it) {
   const d = taskDate(it);
   if (!d) return it.repeat ? h('span', 'due', '↻ 반복 끝남') : null;
-  return h('span', 'due' + (!taskDone(it) && d < todayStr() ? ' late' : ''), `${it.repeat ? '↻' : '📅'} ${fmtShort(d)}`);
+  const text = isSpan(it) ? `📅 ${fmtShort(d)} ~ ${fmtShort(it.endDate)}` : `${it.repeat ? '↻' : '📅'} ${fmtShort(d)}`;
+  return h('span', 'due' + (isLate(it) ? ' late' : ''), text);
 }
 // 반복 할 일은 체크하면 그 회차만 완료 → 다음 날짜로 넘어감
 function doneCheck(it) {
@@ -379,7 +382,7 @@ function renderTable() {
       tdGroup.append(select([['', '그룹 없음'], ...bs.map(b => [b.id, b.name])], knownBucket(it) || '',
         v => { it.bucket = v; touch(it); save(); }));
     }
-    const tdDate = h('td', 't-date' + (!it.done && it.date && it.date < todayStr() ? ' late' : ''));
+    const tdDate = h('td', 't-date' + (isLate(it) ? ' late' : ''));
     if (it.repeat) {
       // 반복은 다음 날짜만 보여줌 (반복 설정은 편집 창에서)
       tdDate.append(h('span', 't-rep', taskDate(it) ? `↻ ${fmtShort(taskDate(it))}` : '↻ 반복 끝남'));
@@ -388,8 +391,15 @@ function renderTable() {
       date.type = 'date';
       date.value = it.date || '';
       date.addEventListener('click', stop);
-      date.addEventListener('change', () => { it.date = date.value || null; touch(it); save(); });
+      date.addEventListener('change', () => {
+        // 여러 날 일정은 기간을 유지한 채 옮김, 날짜를 지우면 날짜 없는 할 일로
+        if (it.endDate) it.endDate = date.value ? toStr(toNum(it.endDate) + toNum(date.value) - toNum(it.date)) : null;
+        it.date = date.value || null;
+        touch(it);
+        save();
+      });
       tdDate.append(date);
+      if (isSpan(it)) tdDate.append(h('span', 't-rep', `~ ${fmtShort(it.endDate)}`));
     }
 
     tr.append(tdCheck, h('td', 't-title', it.title), tdCat, tdGroup, tdDate,

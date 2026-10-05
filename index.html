@@ -26,7 +26,7 @@
       <div class="search-results" id="searchResults" hidden></div>
     </div>
     <div class="seg" id="viewSeg">
-      <button type="button" data-view="calendar">일정</button>
+      <button type="button" data-view="calendar">달력</button>
       <button type="button" data-view="board">보드</button>
       <button type="button" data-view="table">눈금</button>
     </div>
@@ -45,14 +45,17 @@
   <div class="mp-grid" id="mpGrid"></div>
 </div>
 
-<main class="layout">
+<!-- 달력 + 오른쪽 패널. 사이의 .splitter 를 끌어 크기 조절 -->
+<main class="layout" id="layout">
   <section class="calendar">
     <div class="weekdays"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
     <div class="grid" id="grid"></div>
   </section>
 
+  <div class="splitter v" id="sideSplit" title="끌어서 크기 조절"></div>
+
   <aside class="side">
-    <section class="panel">
+    <section class="panel" id="dayPanel">
       <div class="panel-head">
         <h2 id="dayTitle"></h2>
         <span class="holiday-tag" id="dayHoliday"></span>
@@ -65,12 +68,16 @@
       <div class="cat-pick" id="dayCats"></div>
     </section>
 
-    <section class="panel">
+    <div class="splitter h" data-panel="dayPanel" title="끌어서 크기 조절"></div>
+
+    <section class="panel" id="ddayPanel">
       <div class="panel-head"><h2>D-day</h2></div>
       <ul class="list" id="ddayList"></ul>
     </section>
 
-    <section class="panel">
+    <div class="splitter h" data-panel="ddayPanel" title="끌어서 크기 조절"></div>
+
+    <section class="panel" id="todoPanel">
       <div class="panel-head"><h2>할 일</h2><span class="hint">달력으로 끌어다 놓으면 일정이 돼요</span></div>
       <ul class="list" id="todoList"></ul>
       <form id="todoAdd"><input class="add-input" id="todoInput" placeholder="할 일 추가" autocomplete="off"></form>
@@ -177,7 +184,12 @@
   <div class="row wide"><label>날짜 숫자</label><input type="range" min="13" max="28" data-ui="num"><span class="val"></span></div>
   <div class="row wide"><label>달력 일정 글씨</label><input type="range" min="11" max="18" data-ui="chip"><span class="val"></span></div>
   <div class="row wide"><label>목록 글씨</label><input type="range" min="13" max="20" data-ui="list"><span class="val"></span></div>
-  <button class="btn" id="resetUIBtn">기본값으로</button>
+  <div class="row wide"><label>보드 열 너비</label><input type="range" min="220" max="480" step="10" data-ui="col"><span class="val"></span></div>
+  <div class="row">
+    <button class="btn" id="resetUIBtn">글씨·너비 기본값으로</button>
+    <button class="btn" id="resetLayoutBtn">달력 패널 크기 초기화</button>
+  </div>
+  <p class="hint">달력 화면의 패널 크기는 패널 사이 경계를 마우스로 끌어서 바꿔요.</p>
 
   <h2>카테고리</h2>
   <div id="catEditor"></div>
