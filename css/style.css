@@ -827,4 +827,5 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
   .box { display: none; } /* 폭이 좁아 체크 칸은 숨김 — 체크는 아래 날짜 목록에서 */
   .chip .t, .span-bar .t { margin-right: 3px; }
   .hol { display: none; }
+  .pc-only { display: none; }
 }
