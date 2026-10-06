@@ -114,7 +114,10 @@ const touch = it => { it.updatedAt = Date.now(); };
 // 삭제는 표시만 해둠 (나중에 기기 간 동기화할 때 삭제도 전달하려고)
 const live = () => db.items.filter(i => !i.deleted);
 const byTime = (a, b) => (a.time || '').localeCompare(b.time || '') || a.createdAt - b.createdAt;
-const itemsOn = s => live().filter(i => occursOn(i, s)).sort((a, b) => isDone(a, s) - isDone(b, s) || byTime(a, b)); // 완료는 맨 밑
+// 하루 안 순서: 완료는 맨 밑, 그 안에서 할 일(끌어서 정한 순서 dayOrder) → 일정(시간순)
+const byDay = s => (a, b) => isDone(a, s) - isDone(b, s) || !!a.time - !!b.time
+  || (a.time ? byTime(a, b) : (a.dayOrder ?? Infinity) - (b.dayOrder ?? Infinity) || a.createdAt - b.createdAt);
+const itemsOn = s => live().filter(i => occursOn(i, s)).sort(byDay(s));
 const catColor = id => (db.categories.find(c => c.id === id) || {}).color || null;
 // 체크리스트 진행 '2/5' (없으면 '')
 const clProgress = it => { const c = it.checklist || []; return c.length ? `${c.filter(x => x.done).length}/${c.length}` : ''; };
@@ -143,6 +146,7 @@ function moveTo(id, s) {
   if (!it || it.repeat || it.date === s) return;
   if (it.endDate) it.endDate = toStr(toNum(it.endDate) + toNum(s) - toNum(it.date)); // 기간 유지
   it.date = s;
+  delete it.dayOrder; // 다른 날로 가면 그날 할 일 맨 아래로
   touch(it);
   save();
 }
@@ -211,9 +215,18 @@ function dropTarget(e, s) {
     } else moveTo(id, s);
   });
 }
+let dragging = null; // 끄는 중인 { it, s } (dragover 중에는 dataTransfer를 못 읽어서)
 function draggable(e, it, s) {
   e.draggable = true;
-  e.addEventListener('dragstart', ev => ev.dataTransfer.setData('text/plain', `${it.id}|${s || ''}`));
+  e.addEventListener('dragstart', ev => { dragging = { it, s }; ev.dataTransfer.setData('text/plain', `${it.id}|${s || ''}`); });
+  e.addEventListener('dragend', () => { dragging = null; });
+}
+// 할 일 it을 그날 target 앞/뒤로 놓고, 그날 할 일 순서를 0,1,2…로 다시 매김
+function placeInDay(it, target, before, s) {
+  const arr = itemsOn(s).filter(x => !x.time && !isSpan(x) && x !== it);
+  arr.splice(arr.indexOf(target) + (before ? 0 : 1), 0, it);
+  arr.forEach((x, k) => { if (x.dayOrder !== k) { x.dayOrder = k; touch(x); } });
+  save();
 }
 function checkBox(it, s) {
   const box = h('span', 'box');
@@ -318,6 +331,27 @@ function chip(it, s) {
   e.title = (it.time ? it.time + ' ' : '') + it.title;
   e.addEventListener('click', ev => { ev.stopPropagation(); openEditor(it, s); });
   draggable(e, it, s);
+  if (!it.time) {
+    // 같은 날 할 일끼리 끌면 순서 바꾸기 (그 밖의 끌기는 칸으로 넘겨서 날짜 옮기기)
+    const side = ev => (ev.clientY < e.getBoundingClientRect().top + e.offsetHeight / 2 ? 'before' : 'after');
+    const reorder = () => dragging && dragging.it !== it && !dragging.it.time && dragging.s === s;
+    e.addEventListener('dragover', ev => {
+      if (!reorder()) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      e.classList.toggle('drop-before', side(ev) === 'before');
+      e.classList.toggle('drop-after', side(ev) === 'after');
+    });
+    e.addEventListener('dragleave', () => e.classList.remove('drop-before', 'drop-after'));
+    e.addEventListener('drop', ev => {
+      // 다시 그리면서 dragend가 안 올 수 있어 dragging이 남아 있을 수 있음 → 놓은 데이터로 확인
+      if (!reorder() || ev.dataTransfer.getData('text/plain').split('|')[0] !== dragging.it.id) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      e.closest('.cell').classList.remove('drop');
+      placeInDay(dragging.it, it, side(ev) === 'before', s);
+    });
+  }
   return e;
 }
 
