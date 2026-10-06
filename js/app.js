@@ -114,7 +114,7 @@ const touch = it => { it.updatedAt = Date.now(); };
 // 삭제는 표시만 해둠 (나중에 기기 간 동기화할 때 삭제도 전달하려고)
 const live = () => db.items.filter(i => !i.deleted);
 const byTime = (a, b) => (a.time || '').localeCompare(b.time || '') || a.createdAt - b.createdAt;
-const itemsOn = s => live().filter(i => occursOn(i, s)).sort(byTime);
+const itemsOn = s => live().filter(i => occursOn(i, s)).sort((a, b) => isDone(a, s) - isDone(b, s) || byTime(a, b)); // 완료는 맨 밑
 const catColor = id => (db.categories.find(c => c.id === id) || {}).color || null;
 // 체크리스트 진행 '2/5' (없으면 '')
 const clProgress = it => { const c = it.checklist || []; return c.length ? `${c.filter(x => x.done).length}/${c.length}` : ''; };
