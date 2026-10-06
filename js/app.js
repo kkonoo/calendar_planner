@@ -1047,6 +1047,32 @@ $('todayBtn').addEventListener('click', () => select(todayStr()));
 let resizeTimer;
 addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderGrid, 150); });
 
+// ---------- 폰: 뒤로 가기 ----------
+// 기록을 한 칸 더 쌓아 두고, 뒤로 가기로 그 칸이 빠지면(popstate) 앱 안에서 처리한 뒤 다시 쌓음.
+// 닫을 게 없으면 안내만 띄우고 2초 동안 안 쌓음 → 그사이 또 뒤로 가면 앱이 닫힘.
+// (크롬 계열은 화면을 한 번도 안 누른 채 쌓은 칸을 건너뛰어서, 열자마자 뒤로 가면 예전처럼 바로 닫힘)
+if (matchMedia('(max-width: 900px)').matches) {
+  const guard = () => history.pushState({ guard: true }, '');
+  if (!history.state?.guard) guard();
+  let exitTimer = null;
+  const rearm = () => { clearTimeout(exitTimer); exitTimer = null; $('toast').classList.remove('show'); guard(); };
+  addEventListener('pointerdown', () => { if (exitTimer) rearm(); }); // 안내 중에 화면을 누르면 바로 다시 쌓기
+  addEventListener('popstate', () => {
+    const dlg = document.querySelector('dialog[open]'), pop = document.querySelector(':popover-open');
+    if (dlg) dlg.close();
+    else if (pop) pop.hidePopover();
+    else if (!$('searchResults').hidden) $('searchInput').blur();
+    else if (!$('dayPalette').hidden) $('dayPalette').hidden = true;
+    else if ((prefs.view || 'calendar') !== 'calendar') { prefs.view = 'calendar'; savePrefs(); render(); }
+    else {
+      $('toast').classList.add('show');
+      exitTimer = setTimeout(rearm, 2000);
+      return;
+    }
+    guard();
+  });
+}
+
 applyTheme();
 applyUI();
 applyLayout();
