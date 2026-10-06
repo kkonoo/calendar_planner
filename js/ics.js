@@ -111,7 +111,7 @@ function fromICS(text) {
     }
     const note = [];
     if (start.time && end && end.time && end.date === start.date) note.push(`시간: ${start.time}~${end.time}`);
-    if (ev.LOCATION && icsText(ev.LOCATION.value)) note.push(`장소: ${icsText(ev.LOCATION.value)}`);
+    if (ev.LOCATION) it.place = icsText(ev.LOCATION.value);
     if (ev.DESCRIPTION && icsText(ev.DESCRIPTION.value)) note.push(icsText(ev.DESCRIPTION.value));
     it.note = note.join('\n\n');
 

@@ -1,11 +1,11 @@
 'use strict';
-// 검색: 제목·메모·체크리스트에서 찾기. 결과를 누르면 그 날짜로 이동 + 편집 창. (app.js 의 함수·데이터를 사용)
+// 검색: 제목·장소·메모·체크리스트에서 찾기. 결과를 누르면 그 날짜로 이동 + 편집 창. (app.js 의 함수·데이터를 사용)
 const searchInput = $('searchInput'), searchBox = $('searchResults');
 let searchHits = [], searchActive = 0;
 
 function searchItems(q) {
   const today = todayStr();
-  const text = it => [it.title, it.note, ...(it.checklist || []).map(c => c.text)].join('\n').toLowerCase();
+  const text = it => [it.title, it.place, it.note, ...(it.checklist || []).map(c => c.text)].join('\n').toLowerCase();
   // 다가오는 일정(가까운 순) → 지난 일정(최근 순) → 날짜 없는 할 일
   const rank = r => (!r.when ? 2 : r.when >= today ? 0 : 1);
   return live().filter(it => text(it).includes(q))
@@ -35,9 +35,9 @@ function renderSearch() {
     const date = when ? `${ymd(when)[0] !== thisYear ? `${ymd(when)[0]}. ` : ''}${fmtShort(when)}` : '할 일';
     row.append(h('span', 'dot'), marked('sr-title', it.title, q),
       h('span', 'sr-meta', [date, it.time, it.repeat ? '↻' : ''].filter(Boolean).join(' ')));
-    // 제목에 없고 메모·체크리스트에서 찾은 경우 그 부분을 한 줄 보여줌
+    // 제목에 없고 장소·메모·체크리스트에서 찾은 경우 그 부분을 한 줄 보여줌
     if (!it.title.toLowerCase().includes(q)) {
-      const line = [it.note || '', ...(it.checklist || []).map(c => c.text)].join('\n').split('\n').find(l => l.toLowerCase().includes(q));
+      const line = [it.place ? `📍 ${it.place}` : '', it.note || '',...(it.checklist || []).map(c => c.text)].join('\n').split('\n').find(l => l.toLowerCase().includes(q));
       if (line) row.append(marked('sr-snip', line.trim(), q));
     }
     row.addEventListener('mousedown', e => e.preventDefault()); // 검색칸 포커스 유지

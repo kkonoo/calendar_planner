@@ -467,6 +467,7 @@ li.done .check::after, .check.on::after {
 .list .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 li.done .title { color: var(--muted); text-decoration: line-through; }
 .list .meta { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.list .place { max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
 .list .dd { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .list li[draggable="true"] { cursor: grab; }
 
@@ -573,6 +574,26 @@ dialog h2 + .hint { margin-top: 0; }
 .time-menu button.on { background: var(--accent); color: #fff; }
 .time-menu button:first-child { color: var(--muted); }
 .row input[type="number"] { width: 60px; }
+.row input[name="place"] {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  outline: none;
+}
+.row input[name="place"]:focus { border-color: var(--accent); }
+.map-links { display: inline-flex; gap: 4px; }
+.map-links a {
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.map-links a:hover { background: var(--surface-2); color: var(--text); }
 .check-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
 
 .seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }

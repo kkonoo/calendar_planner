@@ -106,7 +106,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 function newItem(fields) {
   const t = Date.now();
   return {
-    id: uid(), title: '', date: null, endDate: null, time: null, cat: null, note: '', done: false, dday: false,
+    id: uid(), title: '', date: null, endDate: null, time: null, cat: null, place: '', note: '', done: false, dday: false,
     repeat: null, doneDates: [], skipDates: [], createdAt: t, updatedAt: t, ...fields,
   };
 }
@@ -135,7 +135,7 @@ function detach(series, s) {
   series.skipDates.push(s);
   touch(series);
   const copy = newItem({
-    title: series.title, date: s, time: series.time, cat: series.cat, note: series.note,
+    title: series.title, date: s, time: series.time, cat: series.cat, place: series.place || '', note: series.note,
     done: series.doneDates.includes(s), seriesId: series.id,
   });
   db.items.push(copy);
@@ -378,6 +378,7 @@ function itemRow(it, s, extra) {
   li.append(check);
   if (it.time) li.append(h('span', 'time', it.time));
   li.append(h('span', 'title', it.title));
+  if (it.place) li.append(h('span', 'meta place', `📍 ${it.place}`));
   const p = clProgress(it);
   if (p) li.append(h('span', 'meta', `☑ ${p}`));
   if (extra) li.append(extra);
@@ -535,6 +536,8 @@ function openEditor(it, s, presetDate) {
   form.interval.value = (r && r.interval) || 1;
   form.until.value = (r && r.until) || '';
   form.dday.checked = it.dday;
+  form.place.value = it.place || '';
+  syncMapLinks();
   form.note.value = it.note || '';
   editChecklist = (it.checklist || []).map(c => ({ ...c }));
   $('clInput').value = '';
@@ -600,6 +603,19 @@ form.date.addEventListener('change', syncEditor);
 form.date.addEventListener('input', () => form.date.setCustomValidity(''));
 form.freq.addEventListener('change', () => form.date.setCustomValidity(''));
 form.bucket.addEventListener('change', () => { editBucket = form.bucket.value || null; });
+
+// 장소: 누르면 지도 사이트(폰은 지도 앱)에서 검색 — API 키 없이 링크만
+const MAPS = {
+  naver: q => `https://map.naver.com/p/search/${encodeURIComponent(q)}`,
+  kakao: q => `https://map.kakao.com/link/search/${encodeURIComponent(q)}`,
+  google: q => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,
+};
+function syncMapLinks() {
+  const q = form.place.value.trim();
+  $('mapLinks').hidden = !q;
+  $('mapLinks').querySelectorAll('a').forEach(a => { a.href = q ? MAPS[a.dataset.map](q) : ''; });
+}
+form.place.addEventListener('input', syncMapLinks);
 
 // 체크리스트 (하위 항목) — 저장 버튼 누를 때 반영. 줄을 끌어서 순서 변경, 글자를 누르면 고치기
 let clDragging = null; // 끌고 있는 항목
@@ -716,6 +732,7 @@ form.addEventListener('submit', e => {
   it.cat = editCat;
   it.bucket = editBuckets().some(b => b.id === editBucket) ? editBucket : null;
   it.dday = form.dday.checked;
+  it.place = form.place.value.trim();
   it.note = form.note.value;
   it.checklist = editChecklist.filter(c => c.text.trim());
   if (!f || !it.date) it.repeat = null;
