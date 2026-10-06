@@ -71,8 +71,11 @@ async function start() {
   window.onSave = push;
 
   // ---------- 받기 ----------
+  // 올리기(push)는 서버 값을 한 번 받은 뒤부터. 기기 캐시에만 있는 값(새 브라우저면 빈 값)을 보고 올리면
+  // 계정의 카테고리를 이 기기의 기본 카테고리로 덮어씀 → fromCache 가 풀릴 때 알 수 있게 includeMetadataChanges
+  const META_CHANGES = { includeMetadataChanges: true };
   function subscribe() {
-    unsub.push(F.onSnapshot(F.collection(fs, 'users', uid, 'items'), snap => {
+    unsub.push(F.onSnapshot(F.collection(fs, 'users', uid, 'items'), META_CHANGES, snap => {
       let changed = false;
       for (const ch of snap.docChanges()) {
         const r = ch.doc.data();
@@ -87,17 +90,17 @@ async function start() {
         }
       }
       if (changed) { persist(); render(); }
-      if (!ready.items) { ready.items = true; push(); }
+      if (!ready.items && !snap.metadata.fromCache) { ready.items = true; push(); }
     }, e => console.error('동기화 실패', e)));
 
     for (const [name, m] of Object.entries(META)) {
-      unsub.push(F.onSnapshot(F.doc(fs, 'users', uid, 'meta', name), snap => {
+      unsub.push(F.onSnapshot(F.doc(fs, 'users', uid, 'meta', name), META_CHANGES, snap => {
         if (snap.exists()) {
           const v = snap.data().value;
           metaJSON[name] = JSON.stringify(v);
           if (metaJSON[name] !== JSON.stringify(m.get())) { m.set(v); persist(); render(); }
         }
-        if (!ready[name]) { ready[name] = true; push(); }
+        if (!ready[name] && !snap.metadata.fromCache) { ready[name] = true; push(); }
       }, e => console.error('동기화 실패', e)));
     }
   }
