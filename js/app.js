@@ -750,15 +750,18 @@ form.addEventListener('submit', e => {
   save();
 });
 $('cancelBtn').addEventListener('click', () => editor.close());
+// 삭제 표시 (보드 카드의 ✕도 같이 씀). 반복이면 확인 후 전부 — 취소하면 false
+function removeItem(it) {
+  if (it.repeat && !confirm(`'${it.title}' 반복 일정을 전부 삭제할까요?`)) return false;
+  it.deleted = true;
+  // 반복 전체 삭제 시 따로 옮겨 둔 날들도 같이 삭제
+  db.items.forEach(i => { if (i.seriesId === it.id && !i.deleted) { i.deleted = true; touch(i); } });
+  touch(it);
+  return true;
+}
 $('delBtn').addEventListener('click', () => {
-  if (isSeriesEdit() && editScope === 'one') editing.skipDates.push(editingDate);
-  else {
-    if (editing.repeat && !confirm(`'${editing.title}' 반복 일정을 전부 삭제할까요?`)) return;
-    editing.deleted = true;
-    // 반복 전체 삭제 시 따로 옮겨 둔 날들도 같이 삭제
-    db.items.forEach(i => { if (i.seriesId === editing.id && !i.deleted) { i.deleted = true; touch(i); } });
-  }
-  touch(editing);
+  if (isSeriesEdit() && editScope === 'one') { editing.skipDates.push(editingDate); touch(editing); }
+  else if (!removeItem(editing)) return;
   editor.close();
   save();
 });

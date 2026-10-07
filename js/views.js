@@ -154,7 +154,10 @@ function card(it, showGroup, ctx) {
   const e = h('div', 'card' + (done ? ' done' : ''));
   setColor(e, it.cat);
   const top = h('div', 'card-top');
-  top.append(doneCheck(it), h('span', 'card-title', it.title));
+  const del = h('button', 'icon-btn small card-del', '✕');
+  del.title = '삭제';
+  del.addEventListener('click', ev => { ev.stopPropagation(); if (removeItem(it)) save(); });
+  top.append(doneCheck(it), h('span', 'card-title', it.title), del);
   e.append(top);
   const todo = done ? [] : (it.checklist || []).filter(c => !c.done).slice(0, 5);
   for (const c of todo) {

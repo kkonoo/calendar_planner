@@ -758,6 +758,9 @@ span.col-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; 
 .t-rep { padding: 4px 6px; color: var(--muted); white-space: nowrap; }
 .card-top { display: flex; align-items: flex-start; gap: 10px; }
 .card-top .check { margin-top: 1px; }
+.card-top .card-del { width: 22px; height: 22px; margin: -1px -6px 0 0; font-size: 13px; visibility: hidden; }
+.card:hover .card-del { visibility: visible; }
+@media (hover: none) { .card-top .card-del { visibility: visible; } }
 .card-title { flex: 1; min-width: 0; line-height: 1.4; word-break: break-word; }
 .card.done .card-title { color: var(--muted); text-decoration: line-through; }
 .card-cl { display: flex; align-items: center; gap: 8px; margin: 6px 0 0 28px; font-size: calc(var(--list-font) - 1px); color: var(--muted); }
