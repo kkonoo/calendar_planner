@@ -12,6 +12,7 @@ async function start() {
   const [{ initializeApp }, A, F] = await Promise.all([
     import(`${SDK}/firebase-app.js`), import(`${SDK}/firebase-auth.js`), import(`${SDK}/firebase-firestore.js`),
   ]);
+  await dbReady; // 기기에 저장된 일정을 다 읽은 뒤에 (그 전엔 db가 빈 값)
   const app = initializeApp(firebaseConfig);
   const auth = A.getAuth(app);
   const fs = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });

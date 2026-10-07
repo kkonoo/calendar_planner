@@ -95,10 +95,33 @@ const DEFAULT_CATS = [
   { id: 'teach', name: '강의·교육', color: '#5B9BEA' },
 ];
 const readJSON = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
-let db = readJSON(KEY) || { version: 1, categories: DEFAULT_CATS, items: [] };
+// 일정 데이터는 IndexedDB에 (localStorage는 사이트 주소당 약 5MB이고 같은 주소의 일상노트와 나눠 씀).
+// 예전 localStorage 값은 처음 한 번 옮기고 지움. IndexedDB를 못 쓰는 브라우저면 localStorage 그대로
+let db = { version: 1, categories: DEFAULT_CATS, items: [] }, idb = null, dbLoaded = false;
+const idbReq = (r, ok, fail) => { r.onsuccess = () => ok(r.result); r.onerror = () => fail(r.error); };
+const dbReady = new Promise((ok, fail) => {
+  const r = indexedDB.open('calendar-planner', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('kv');
+  idbReq(r, d => idbReq(d.transaction('kv').objectStore('kv').get(KEY), v => { idb = d; ok(v); }, fail), fail);
+}).catch(() => null).then(saved => {
+  const legacy = readJSON(KEY);
+  db = (saved && JSON.parse(saved)) || legacy || db;
+  dbLoaded = true;
+  if (idb && !saved && legacy) persist().then(() => localStorage.removeItem(KEY));
+});
 let prefs = readJSON(PKEY) || {};
 const savePrefs = () => localStorage.setItem(PKEY, JSON.stringify(prefs));
-const persist = () => localStorage.setItem(KEY, JSON.stringify(db));
+const persist = () => {
+  if (!dbLoaded) return Promise.resolve(); // 다 읽기 전의 빈 값으로 덮어쓰지 않게
+  const s = JSON.stringify(db);
+  if (!idb) return Promise.resolve(localStorage.setItem(KEY, s));
+  return new Promise((ok, fail) => {
+    const t = idb.transaction('kv', 'readwrite');
+    t.objectStore('kv').put(s, KEY);
+    t.oncomplete = ok;
+    t.onerror = t.onabort = () => fail(t.error);
+  });
+};
 // 변경 저장 → 다시 그리기 → (로그인돼 있으면) sync.js가 계정에 올림
 function save() { persist(); render(); if (window.onSave) window.onSave(); }
 
@@ -1097,7 +1120,7 @@ if (matchMedia('(max-width: 900px)').matches) {
 applyTheme();
 applyUI();
 applyLayout();
-addEventListener('DOMContentLoaded', render); // views.js 까지 읽은 뒤 그리기
+addEventListener('DOMContentLoaded', () => dbReady.then(render)); // views.js 까지 읽고, 저장된 일정도 읽은 뒤 그리기
 
 // 앱 설치(PWA)·오프라인용. 파일을 더블클릭해서 연 경우(file://)엔 동작 안 함
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js');
