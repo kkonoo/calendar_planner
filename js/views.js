@@ -21,7 +21,7 @@ function nextOpen(it) {
 }
 const taskDate = it => (it.repeat ? nextOpen(it) : it.date);
 const taskDone = it => (it.repeat ? !nextOpen(it) : it.done); // 반복은 끝나야 완료
-// 보드엔 최근 1개월 안에 완료한 것만 (완료 시각 따로 없어서 마지막으로 고친 시각 기준). 예전 것은 달력·검색에서
+// 보드·목록엔 최근 1개월 안에 완료한 것만 (완료 시각 따로 없어서 마지막으로 고친 시각 기준). 예전 것은 달력·검색에서
 const recentDone = it => (it.updatedAt || it.createdAt || 0) >= Date.now() - 30 * 864e5;
 // 마감일 가까운 순 → 날짜 없는 것은 뒤로
 const taskOrder = (a, b) => (taskDate(a) || '9999').localeCompare(taskDate(b) || '9999') || a.createdAt - b.createdAt;
@@ -301,7 +301,7 @@ function column(c, plan) {
   col.append(head, add, list);
 
   if (done.length) {
-    const toggle = h('button', 'done-toggle', `완료된 작업 ${done.length} ${openDoneCols.has(key) ? '▴' : '▾'}`);
+    const toggle = h('button', 'done-toggle', `최근 1개월 완료 ${done.length} ${openDoneCols.has(key) ? '▴' : '▾'}`);
     toggle.addEventListener('click', () => {
       if (openDoneCols.has(key)) openDoneCols.delete(key); else openDoneCols.add(key);
       renderBoard();
@@ -357,9 +357,9 @@ function renderBoard() {
 function renderTable() {
   nextCache = new Map();
   renderPlanNav();
-  const plan = currentPlan(), mine = tasks().filter(it => inPlan(it, plan)), showDone = !!prefs.tableDone;
+  const plan = currentPlan(), mine = tasks().filter(it => inPlan(it, plan) && (!taskDone(it) || recentDone(it))), showDone = !!prefs.tableDone;
   $('tableDoneChk').checked = showDone;
-  $('tableDoneLabel').textContent = `완료된 작업도 표시 (${mine.filter(taskDone).length})`;
+  $('tableDoneLabel').textContent = `최근 1개월 완료된 작업도 표시 (${mine.filter(taskDone).length})`;
   const rows = mine.filter(it => showDone || !taskDone(it)).sort((a, b) => taskDone(a) - taskDone(b) || taskOrder(a, b));
   const stop = e => e.stopPropagation();
   const select = (options, value, onChange) => {
