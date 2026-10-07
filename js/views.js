@@ -301,7 +301,7 @@ function column(c, plan) {
   col.append(head, add, list);
 
   if (done.length) {
-    const toggle = h('button', 'done-toggle', `완료 (최근 1개월) ${done.length} ${openDoneCols.has(key) ? '▴' : '▾'}`);
+    const toggle = h('button', 'done-toggle', `(최근 1개월) 완료 ${done.length} ${openDoneCols.has(key) ? '▴' : '▾'}`);
     toggle.addEventListener('click', () => {
       if (openDoneCols.has(key)) openDoneCols.delete(key); else openDoneCols.add(key);
       renderBoard();
@@ -359,7 +359,7 @@ function renderTable() {
   renderPlanNav();
   const plan = currentPlan(), mine = tasks().filter(it => inPlan(it, plan) && (!taskDone(it) || recentDone(it))), showDone = !!prefs.tableDone;
   $('tableDoneChk').checked = showDone;
-  $('tableDoneLabel').textContent = `완료된 작업도 표시 (최근 1개월) ${mine.filter(taskDone).length}`;
+  $('tableDoneLabel').textContent = `(최근 1개월) 완료된 작업도 표시 ${mine.filter(taskDone).length}`;
   const rows = mine.filter(it => showDone || !taskDone(it)).sort((a, b) => taskDone(a) - taskDone(b) || taskOrder(a, b));
   const stop = e => e.stopPropagation();
   const select = (options, value, onChange) => {
