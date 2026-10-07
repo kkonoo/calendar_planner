@@ -22,6 +22,10 @@ async function start() {
     days: { get: () => db.dayColors || {}, set: v => { db.dayColors = v; } },
   };
   let uid = null, unsub = [], synced = {}, metaJSON = {}, ready = {};
+  // 이 기기가 서버와 어디까지 맞췄는지. db 안에 같이 저장 → 로그아웃·계정 변경으로 db가 바뀌면 같이 없어짐
+  // since: 서버에서 받은 마지막 변경 시각(syncedAt, 서버 시계) / full: 마지막으로 전부 받은 때 / synced: 일정 id → 서버에 있는 updatedAt
+  let since = 0, full = 0;
+  const keep = () => { db.sync = { since, full, synced }; persist(); };
   const clean = v => JSON.parse(JSON.stringify(v)); // Firestore는 undefined 값을 못 받음
   const allReady = () => ready.items && Object.keys(META).every(k => ready[k]);
 
@@ -51,10 +55,11 @@ async function start() {
     const writes = [];
     for (const it of db.items) {
       if (it.updatedAt > (synced[it.id] || 0)) {
-        writes.push([F.doc(fs, 'users', uid, 'items', it.id), clean(it)]);
+        writes.push([F.doc(fs, 'users', uid, 'items', it.id), { ...clean(it), syncedAt: F.serverTimestamp() }]);
         synced[it.id] = it.updatedAt;
       }
     }
+    if (writes.length) keep();
     for (const [name, m] of Object.entries(META)) {
       const json = JSON.stringify(m.get());
       if (json !== metaJSON[name]) {
@@ -75,10 +80,23 @@ async function start() {
   // 계정의 카테고리를 이 기기의 기본 카테고리로 덮어씀 → fromCache 가 풀릴 때 알 수 있게 includeMetadataChanges
   const META_CHANGES = { includeMetadataChanges: true };
   function subscribe() {
-    unsub.push(F.onSnapshot(F.collection(fs, 'users', uid, 'items'), META_CHANGES, snap => {
+    // 열 때마다 일정을 전부 받으면 일정 수만큼 읽기가 듦 → 지난번 이후 바뀐 것(syncedAt)만.
+    // 처음이거나 일주일 지났으면 혹시 놓친 게 없게 전부 받기
+    const st = db.sync || {};
+    const all = !st.since || Date.now() - (st.full || 0) > 7 * 864e5;
+    since = all ? 0 : st.since;
+    full = all ? 0 : st.full;
+    synced = all ? {} : { ...st.synced };
+    const col = F.collection(fs, 'users', uid, 'items');
+    // 10분 겹쳐 받기: syncedAt은 요청 시각이라 늦게 끝난 저장이 더 이른 시각을 가질 수 있음
+    const q = all ? col : F.query(col, F.where('syncedAt', '>', F.Timestamp.fromMillis(since - 10 * 60e3)));
+    unsub.push(F.onSnapshot(q, META_CHANGES, snap => {
       let changed = false;
+      const before = since;
       for (const ch of snap.docChanges()) {
-        const r = ch.doc.data();
+        if (ch.type === 'removed') continue; // 내가 막 올린 일정이 서버 시각을 받기 전에 잠깐 빠지는 것
+        const { syncedAt, ...r } = ch.doc.data();
+        if (syncedAt?.toMillis && !snap.metadata.fromCache && !ch.doc.metadata.hasPendingWrites) since = Math.max(since, syncedAt.toMillis());
         synced[r.id] = Math.max(synced[r.id] || 0, r.updatedAt);
         const local = db.items.find(x => x.id === r.id);
         if (!local) { db.items.push(r); changed = true; }
@@ -89,8 +107,15 @@ async function start() {
           changed = true;
         }
       }
-      if (changed) { persist(); render(); }
-      if (!ready.items && !snap.metadata.fromCache) { ready.items = true; push(); }
+      const first = !ready.items && !snap.metadata.fromCache;
+      if (first) {
+        ready.items = true;
+        if (all) full = Date.now();
+        if (!since) since = Date.now() - 864e5; // syncedAt 붙은 일정이 아직 하나도 없을 때 (이 기능 전에 올린 것들)
+      }
+      if (changed || first || since !== before) keep();
+      if (changed) render();
+      if (first) push();
     }, e => console.error('동기화 실패', e)));
 
     for (const [name, m] of Object.entries(META)) {
@@ -123,6 +148,7 @@ async function start() {
         confirm(`이 기기에 저장된 일정 ${n}개를 ${user.email} 계정에 합칠까요?\n(취소하면 계정에 있는 일정만 보여요)`);
       if (!merge) db = { version: 1, categories: DEFAULT_CATS, items: [] };
       db.owner = uid;
+      delete db.sync; // 다른 계정 기준이었던 동기화 상태로 이 계정을 받으면 빠지는 게 생김
       persist();
       render();
     }

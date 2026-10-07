@@ -927,7 +927,8 @@ $('addCatBtn').addEventListener('click', () => {
 // ---------- 설정: 백업 ----------
 $('exportBtn').addEventListener('click', () => {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(db)], { type: 'application/json' }));
+  // 동기화 상태(sync)는 이 기기 것이라 백업에서 빼기
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({ ...db, sync: undefined })], { type: 'application/json' }));
   a.download = `planner-backup-${todayStr()}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
