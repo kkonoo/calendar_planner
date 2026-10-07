@@ -21,6 +21,8 @@ function nextOpen(it) {
 }
 const taskDate = it => (it.repeat ? nextOpen(it) : it.date);
 const taskDone = it => (it.repeat ? !nextOpen(it) : it.done); // 반복은 끝나야 완료
+// 보드엔 최근 1개월 안에 완료한 것만 (완료 시각 따로 없어서 마지막으로 고친 시각 기준). 예전 것은 달력·검색에서
+const recentDone = it => (it.updatedAt || it.createdAt || 0) >= Date.now() - 30 * 864e5;
 // 마감일 가까운 순 → 날짜 없는 것은 뒤로
 const taskOrder = (a, b) => (taskDate(a) || '9999').localeCompare(taskDate(b) || '9999') || a.createdAt - b.createdAt;
 // 열 안 순서: 직접 옮긴 카드(order)가 먼저, 나머지는 날짜순
@@ -318,8 +320,8 @@ function column(c, plan) {
 function renderBoard() {
   nextCache = new Map();
   renderPlanNav();
-  const plan = currentPlan(), all = tasks();
-  const none = { key: 'none', name: '미분류', cat: null, bucket: null, items: all.filter(it => !knownCat(it)) };
+  const plan = currentPlan(), all = tasks().filter(it => !taskDone(it) || recentDone(it));
+  const none ={ key: 'none', name: '미분류', cat: null, bucket: null, items: all.filter(it => !knownCat(it)) };
   let cols;
   if (plan === 'all') {
     cols = [...db.categories.map(c => ({ key: c.id, name: c.name, color: c.color, cat: c.id, items: all.filter(it => knownCat(it) === c.id) })), none];
