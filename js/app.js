@@ -149,12 +149,12 @@ const byName = it => (it.by && it.by.uid !== window.me?.uid && isSharedCat(it.ca
 // 색·공유 여부는 대표 카테고리(it.cat)가 정하고, 추가는 내 카테고리만 (보기·탭에 같이 나오기만 함)
 const alsoOf = it => ((db.also || {})[it.id] || []).filter(id => id !== it.cat && db.categories.some(c => c.id === id && !c.shared));
 // 달력 화면에 보일 일정: 전체 / 개인 / 공유 (prefs.scope, 기기별). 공유 캘린더가 없으면 전체
-// 공유 일정이라도 내 카테고리를 추가로 붙였으면 개인에도 나옴
+// 공유 일정이라도 내 카테고리를 추가로 붙였으면 개인에도 나옴. 공유 보기에선 끈 공유 캘린더(prefs.hideShared)는 빼고
 const scope = () => (db.categories.some(c => c.shared) && prefs.scope) || 'all';
 const shown = () => {
-  const s = scope();
+  const s = scope(), off = prefs.hideShared || [];
   if (s === 'all') return live();
-  return live().filter(it => (s === 'shared' ? isSharedCat(it.cat) : !isSharedCat(it.cat) || alsoOf(it).length > 0));
+  return live().filter(it => (s === 'shared' ? isSharedCat(it.cat) && !off.includes(it.cat) : !isSharedCat(it.cat) || alsoOf(it).length > 0));
 };
 // 달력 화면의 색: 개인 보기에선 공유 일정도 내가 추가한 (첫) 카테고리 색, 전체·공유 보기는 대표(공유 캘린더) 색
 const viewCat = it => (scope() === 'mine' && isSharedCat(it.cat) && alsoOf(it)[0]) || it.cat;
@@ -247,6 +247,7 @@ function render() {
   document.querySelectorAll('#viewSeg [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === v));
   $('scopeSeg').hidden = v !== 'calendar' || !db.categories.some(c => c.shared);
   document.querySelectorAll('#scopeSeg [data-show]').forEach(b => b.classList.toggle('on', b.dataset.show === scope()));
+  renderSharedPick();
   if (v === 'board') return renderBoard();
   if (v === 'table') return renderTable();
   $('monthTitle').textContent = `${view.y}년 ${view.m}월`;
@@ -549,10 +550,13 @@ $('dayAdd').addEventListener('submit', e => {
   e.preventDefault();
   const text = $('dayInput').value.trim();
   if (!text) return;
-  const t = text.match(/^(\d{1,2}):(\d{2})\s+(.+)$/);
+  // '14:00 랩미팅' 또는 끝 시간까지 '14:00-15:00 랩미팅' (~ 도 됨)
+  const t = text.match(/^(\d{1,2}:\d{2})(?:\s*[-~–]\s*(\d{1,2}:\d{2}))?\s+(.+)$/);
+  const time = t && parseTime(t[1]), endTime = t && t[2] && parseTime(t[2]);
   db.items.push(newItem({
-    title: t ? t[3] : text,
-    time: t ? `${pad(t[1])}:${t[2]}` : null,
+    title: time ? t[3] : text,
+    time: time || null,
+    endTime: time && endTime && endTime > time ? endTime : null,
     date: selected,
     cat: prefs.cat || null,
   }));
@@ -1240,6 +1244,25 @@ async function finishSwipe(dx, peek, cancel) {
   peek[1].remove();
 }
 $('todayBtn').addEventListener('click', () => select(todayStr()));
+// 공유 보기: 공유 캘린더가 둘 이상이면 캘린더마다 켜고 끄기 (예: 랩 / 가족)
+function renderSharedPick() {
+  const cats = db.categories.filter(c => c.shared), off = prefs.hideShared || [];
+  $('sharedPick').hidden = $('scopeSeg').hidden || scope() !== 'shared' || cats.length < 2;
+  if ($('sharedPick').hidden) return;
+  $('sharedPick').replaceChildren(...cats.map(c => {
+    const b = h('button', 'cat-pill' + (off.includes(c.id) ? '' : ' on'), c.name);
+    b.type = 'button';
+    b.title = off.includes(c.id) ? '눌러서 보이기' : '눌러서 숨기기';
+    b.style.setProperty('--c', tone(c.color));
+    b.addEventListener('click', () => {
+      const cur = prefs.hideShared || [];
+      prefs.hideShared = cur.includes(c.id) ? cur.filter(x => x !== c.id) : [...cur, c.id];
+      savePrefs();
+      render();
+    });
+    return b;
+  }));
+}
 document.querySelectorAll('#scopeSeg [data-show]').forEach(b => b.addEventListener('click', () => {
   prefs.scope = b.dataset.show;
   savePrefs();

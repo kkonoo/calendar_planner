@@ -652,6 +652,7 @@ textarea:focus { border-color: var(--accent); }
 .member-add input { flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .cat-members .hint { margin: 8px 0 0; }
 .cat-pill.shared::after { content: "공유"; font-size: 10px; color: var(--muted); }
+#sharedPick { margin-top: 0; flex-wrap: nowrap; } /* 공유 보기의 캘린더 켜고 끄기 (상단) */
 
 /* ---------- 보드·눈금 공통: 왼쪽 탭(카테고리) ---------- */
 .task-view { flex: 1; min-height: 0; gap: 18px; padding: 0 24px 24px; }
@@ -855,7 +856,7 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
   .side { gap: 12px; }
   .panel { flex-basis: auto !important; }
   .search { order: 10; flex: 1 1 160px; } /* 윗줄이 차서 한 줄을 다 쓰고, 개인·공유 버튼이 있으면 그 옆에 */
-  #scopeSeg { order: 9; }
+  #scopeSeg, #sharedPick { order: 9; }
   #searchInput { width: 100%; }
   .search-results { width: min(calc(100vw - 24px), 480px); } /* 검색칸이 좁아도 (옆에 개인·공유 버튼) 결과는 줄 전체 너비로 */
   #settings { margin: auto; }
