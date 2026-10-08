@@ -34,7 +34,7 @@ const knownBucket = it => (bucketsOf(knownCat(it)).some(b => b.id === it.bucket)
 const dragId = e => e.dataTransfer.getData('text/plain').split('|')[0];
 // 지금 보고 있는 탭: 'all' | 'none'(미분류) | 카테고리 id
 const currentPlan = () => { const p = prefs.plan || 'all'; return p === 'all' || p === 'none' || catById(p) ? p : 'all'; };
-const inPlan = (it, plan) => plan === 'all' || (plan === 'none' ? !knownCat(it) : knownCat(it) === plan);
+const inPlan = (it, plan) => plan === 'all' || (plan === 'none' ? !knownCat(it) : knownCat(it) === plan || alsoOf(it).includes(plan));
 
 // 카테고리·그룹 옮기기. bucket이 undefined면: 같은 카테고리 안이면 그룹 유지, 다른 카테고리면 그룹 없음
 function moveTask(id, cat, bucket) {
@@ -151,7 +151,8 @@ const openDoneCols = new Set();
 let boardFocus; // 작업·그룹 추가 후 다시 커서 줄 곳
 
 // ctx = { c: 열 정보, list: 그 열의 진행 중 카드 목록 } — 있으면 카드 위에 놓아 순서 바꾸기 가능
-function card(it, showGroup, ctx) {
+// locked: 추가 카테고리로 보이는 카드 — 끌면 대표 카테고리가 바뀌므로(공유 캘린더에서 빠짐) 못 끌게
+function card(it, showGroup, ctx, locked) {
   const done = taskDone(it);
   const e = h('div', 'card' + (done ? ' done' : ''));
   setColor(e, it.cat);
@@ -182,7 +183,7 @@ function card(it, showGroup, ctx) {
   if (byName(it)) meta.append(h('span', '', `👤 ${byName(it)}`));
   if (meta.childElementCount) e.append(meta);
   e.addEventListener('click', () => openEditor(it, taskDate(it)));
-  draggable(e, it, it.date);
+  if (!locked) draggable(e, it, it.date);
 
   if (ctx) {
     const side = ev => (ev.clientY < e.getBoundingClientRect().top + e.offsetHeight / 2 ? 'before' : 'after');
@@ -298,8 +299,8 @@ function column(c, plan) {
     save();
   });
   const list = h('div', 'cards');
-  list.append(...open.map(it => card(it, plan === 'all', { c, list: open })));
-  col.append(head, add, list);
+  list.append(...open.map(it => (c.also ? card(it, false, null, true) : card(it, plan === 'all', { c, list: open }))));
+  col.append(...(c.also ? [head, list] : [head, add, list])); // 추가 카테고리 열엔 작업 추가 칸 없음
 
   if (done.length) {
     const toggle = h('button', 'done-toggle', `(최근 1개월) 완료 ${done.length} ${openDoneCols.has(key) ? '▴' : '▾'}`);
@@ -310,11 +311,11 @@ function column(c, plan) {
     col.append(toggle);
     if (openDoneCols.has(key)) {
       const dl = h('div', 'cards');
-      dl.append(...done.map(it => card(it, plan === 'all')));
+      dl.append(...done.map(it => card(it, plan === 'all', null, c.also)));
       col.append(dl);
     }
   }
-  dropZone(col, id => moveTask(id, c.cat, c.bucket));
+  if (!c.also) dropZone(col, id => moveTask(id, c.cat, c.bucket));
   return col;
 }
 
@@ -333,6 +334,12 @@ function renderBoard() {
     cols = bucketsOf(plan).map(b => ({ key: b.id, name: b.name, color: c.color, cat: plan, bucket: b.id, group: b, items: mine.filter(it => knownBucket(it) === b.id) }));
     const loose = mine.filter(it => !knownBucket(it));
     if (loose.length || !cols.length) cols.push({ key: 'loose', name: cols.length ? '그룹 없음' : c.name, color: c.color, cat: plan, bucket: null, items: loose });
+    // 다른 카테고리 일정에 이 카테고리를 추가로 붙인 것: 대표 카테고리별로 뒤에 (예: '랩에서')
+    const also = all.filter(it => alsoOf(it).includes(plan));
+    for (const k of new Set(also.map(knownCat))) {
+      const o = catById(k);
+      cols.push({ key: `also-${k}`, name: `${o ? o.name : '미분류'}에서`, color: o && o.color, cat: k, also: true, items: also.filter(it => knownCat(it) === k) });
+    }
   }
   const board = $('boardCols');
   board.replaceChildren(...cols.map(c => column(c, plan)));

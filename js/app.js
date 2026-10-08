@@ -145,9 +145,17 @@ const catColor = id => (db.categories.find(c => c.id === id) || {}).color || nul
 const isSharedCat = id => !!(db.categories.find(c => c.id === id) || {}).shared;
 // 공유 캘린더 일정이면 넣은 사람 이름 (내가 넣은 건 '')
 const byName = it => (it.by && it.by.uid !== window.me?.uid && isSharedCat(it.cat) ? it.by.name : '');
+// 추가 카테고리: db.also = { 일정 id: [카테고리 id] } — 내 계정에만 저장 (공유 일정에 붙여도 다른 멤버에겐 안 보임).
+// 색·공유 여부는 대표 카테고리(it.cat)가 정하고, 추가는 내 카테고리만 (보기·탭에 같이 나오기만 함)
+const alsoOf = it => ((db.also || {})[it.id] || []).filter(id => id !== it.cat && db.categories.some(c => c.id === id && !c.shared));
 // 달력 화면에 보일 일정: 전체 / 개인 / 공유 (prefs.scope, 기기별). 공유 캘린더가 없으면 전체
+// 공유 일정이라도 내 카테고리를 추가로 붙였으면 개인에도 나옴
 const scope = () => (db.categories.some(c => c.shared) && prefs.scope) || 'all';
-const shown = () => { const s = scope(); return s === 'all' ? live() : live().filter(it => isSharedCat(it.cat) === (s === 'shared')); };
+const shown = () => {
+  const s = scope();
+  if (s === 'all') return live();
+  return live().filter(it => (s === 'shared' ? isSharedCat(it.cat) : !isSharedCat(it.cat) || alsoOf(it).length > 0));
+};
 // 체크리스트 진행 '2/5' (없으면 '')
 const clProgress = it => { const c = it.checklist || []; return c.length ? `${c.filter(x => x.done).length}/${c.length}` : ''; };
 
@@ -168,6 +176,7 @@ function detach(series, s) {
     done: series.doneDates.includes(s), seriesId: series.id,
   });
   db.items.push(copy);
+  if ((db.also || {})[series.id]) db.also = { ...db.also, [copy.id]: db.also[series.id].slice() };
   return copy;
 }
 function moveTo(id, s) {
@@ -540,7 +549,7 @@ $('todoAdd').addEventListener('submit', e => {
 
 // ---------- 편집 창 ----------
 const editor = $('editor'), form = $('editForm');
-let editing = null, editingDate = null, editCat = null, editBucket = null, editDays = [], editScope = 'all', editChecklist = [];
+let editing = null, editingDate = null, editCat = null, editAlso = [], editBucket = null, editDays = [], editScope = 'all', editChecklist = [];
 // 이미 저장된 반복 일정을 특정 날짜에서 연 경우 → '이 날만 / 모든 반복' 선택
 const isSeriesEdit = () => !!(editing.repeat && editingDate && db.items.includes(editing));
 // 저장된 반복 → 편집 창 '반복' 선택값 (분기·반기 = 3·6개월마다 같은 날짜)
@@ -558,6 +567,7 @@ function openEditor(it, s, presetDate) {
   editing = it;
   editingDate = s;
   editCat = it.cat;
+  editAlso = alsoOf(it);
   editBucket = it.bucket || null;
   const r = it.repeat;
   form.title.value = it.title;
@@ -593,6 +603,20 @@ document.querySelectorAll('#scopeRow [data-scope]').forEach(b => b.addEventListe
 const editBuckets = () => (db.categories.find(c => c.id === editCat) || {}).buckets || [];
 function syncEditor() {
   renderCatPick($('editCats'), editCat, c => { editCat = c; syncEditor(); });
+  // 추가 카테고리: 대표 말고 내 카테고리 여러 개 켜고 끄기 (대표를 고른 뒤에만)
+  const extra = editCat ? db.categories.filter(c => !c.shared && c.id !== editCat) : [];
+  $('alsoRow').hidden = !extra.length;
+  $('alsoHint').textContent = isSharedCat(editCat) ? '나에게만 보여요' : '';
+  $('editAlso').replaceChildren(...extra.map(c => {
+    const b = h('button', 'cat-pill' + (editAlso.includes(c.id) ? ' on' : ''), c.name);
+    b.type = 'button';
+    b.style.setProperty('--c', tone(c.color));
+    b.addEventListener('click', () => {
+      editAlso = editAlso.includes(c.id) ? editAlso.filter(x => x !== c.id) : [...editAlso, c.id];
+      syncEditor();
+    });
+    return b;
+  }));
   // 그룹: 고른 카테고리에 그룹이 있을 때만
   const bs = editBuckets();
   $('bucketRow').hidden = !bs.length;
@@ -779,6 +803,10 @@ form.addEventListener('submit', e => {
   }
   touch(it);
   if (!db.items.includes(it)) db.items.push(it);
+  const also = { ...db.also };
+  delete also[it.id];
+  if (it.cat) { const a = editAlso.filter(id => id !== it.cat && db.categories.some(c => c.id === id && !c.shared)); if (a.length) also[it.id] = a; }
+  db.also = also;
   editor.close();
   save();
 });
