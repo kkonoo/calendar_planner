@@ -118,6 +118,7 @@
       <label>적용</label>
       <div class="seg">
         <button type="button" data-scope="one" id="scopeOneBtn">이 날만</button>
+        <button type="button" data-scope="after">이후 모두</button>
         <button type="button" data-scope="all">모든 반복</button>
       </div>
     </div>
@@ -131,6 +132,11 @@
       <div class="time-field">
         <input name="time" placeholder="없음" autocomplete="off">
         <div class="time-menu" id="timeMenu" hidden></div>
+      </div>
+      ~
+      <div class="time-field" title="끝나는 시간 (비워 두면 시작 시간만)">
+        <input name="endTime" placeholder="끝" autocomplete="off">
+        <div class="time-menu" id="endTimeMenu" hidden></div>
       </div>
       <span class="hint">직접 입력도 돼요 · 예) 14:15</span>
     </div>

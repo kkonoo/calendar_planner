@@ -109,8 +109,8 @@ function fromICS(text) {
       const last = start.time ? end.date : toStr(toNum(end.date) - 1);
       if (last > it.date) it.endDate = last;
     }
+    if (start.time && end && end.time && (end.date > start.date || end.time > start.time)) it.endTime = end.time;
     const note = [];
-    if (start.time && end && end.time && end.date === start.date) note.push(`시간: ${start.time}~${end.time}`);
     if (ev.LOCATION) it.place = icsText(ev.LOCATION.value);
     if (ev.DESCRIPTION && icsText(ev.DESCRIPTION.value)) note.push(icsText(ev.DESCRIPTION.value));
     it.note = note.join('\n\n');

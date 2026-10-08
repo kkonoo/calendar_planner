@@ -174,11 +174,30 @@ function detach(series, s) {
   series.skipDates.push(s);
   touch(series);
   const copy = newItem({
-    title: series.title, date: s, time: series.time, cat: series.cat, place: series.place || '', note: series.note,
+    title: series.title, date: s, time: series.time, endTime: series.endTime || null, cat: series.cat, place: series.place || '', note: series.note,
     done: series.doneDates.includes(s), seriesId: series.id,
   });
   db.items.push(copy);
   if ((db.also || {})[series.id]) db.also = { ...db.also, [copy.id]: db.also[series.id].slice() };
+  return copy;
+}
+// 반복을 s 전날에서 끝냄 ('이후 모두 삭제' — s부터 따로 떼어 둔 날들도 지움)
+function endSeries(series, s) {
+  series.repeat = { ...series.repeat, until: toStr(toNum(s) - 1) };
+  touch(series);
+  db.items.forEach(i => { if (i.seriesId === series.id && i.date >= s && !i.deleted) { i.deleted = true; touch(i); } });
+}
+// '이후 모두' 고치기: 반복을 s 전날에서 끝내고 s부터는 새 반복으로 (편집 창에서 고친 내용은 새 반복에).
+// s부터의 완료·뺀 날과 따로 떼어 둔 날들은 새 반복 쪽으로
+function splitSeries(series, s) {
+  const copy = newItem({ ...JSON.parse(JSON.stringify(series)), id: uid(), createdAt: Date.now(), date: s });
+  copy.doneDates = series.doneDates.filter(d => d >= s);
+  copy.skipDates = series.skipDates.filter(d => d >= s);
+  series.repeat = { ...series.repeat, until: toStr(toNum(s) - 1) };
+  touch(series);
+  db.items.forEach(i => { if (i.seriesId === series.id && i.date >= s) { i.seriesId = copy.id; touch(i); } });
+  if ((db.also || {})[series.id]) db.also = { ...db.also, [copy.id]: db.also[series.id].slice() };
+  db.items.push(copy);
   return copy;
 }
 function moveTo(id, s) {
@@ -418,7 +437,7 @@ function itemRow(it, s, extra) {
   check.setAttribute('aria-label', '완료 표시');
   check.addEventListener('click', e => { e.stopPropagation(); toggleDone(it, s); });
   li.append(check);
-  if (it.time) li.append(h('span', 'time', it.time));
+  if (it.time) li.append(h('span', 'time', it.endTime ? `${it.time}–${it.endTime}` : it.time)); // 끝 시간은 목록에만 (달력 칸은 시작만)
   li.append(h('span', 'title', it.title));
   if (it.place) li.append(h('span', 'meta place', `📍 ${it.place}`));
   const p = clProgress(it);
@@ -576,6 +595,8 @@ function openEditor(it, s, presetDate) {
   form.endDate.value = it.endDate || '';
   form.time.value = it.time || '';
   form.time.setCustomValidity('');
+  form.endTime.value = it.endTime || '';
+  form.endTime.setCustomValidity('');
   form.date.setCustomValidity('');
   form.freq.value = freqOf(r);
   form.interval.value = (r && r.interval) || 1;
@@ -594,10 +615,10 @@ function openEditor(it, s, presetDate) {
   editor.showModal();
 }
 
-// '이 날만'이면 날짜 칸에 그날, '모든 반복'이면 반복 시작일
+// '이 날만'·'이후 모두'면 날짜 칸에 그날, '모든 반복'이면 반복 시작일
 function setScope(scope, presetDate) {
   editScope = scope;
-  form.date.value = presetDate || (scope === 'one' ? editingDate : editing.date) || '';
+  form.date.value = presetDate || (scope === 'all' ? editing.date : editingDate) || '';
   syncEditor();
 }
 document.querySelectorAll('#scopeRow [data-scope]').forEach(b => b.addEventListener('click', () => setScope(b.dataset.scope)));
@@ -629,7 +650,7 @@ function syncEditor() {
   $('scopeRow').hidden = !series;
   document.querySelectorAll('#scopeRow [data-scope]').forEach(b => b.classList.toggle('on', b.dataset.scope === editScope));
   $('freqRow').hidden = one;
-  $('delBtn').textContent = !series ? '삭제' : one ? '이 날만 삭제' : '반복 전체 삭제';
+  $('delBtn').textContent = !series ? '삭제' : one ? '이 날만 삭제' : editScope === 'after' ? '이후 모두 삭제' : '반복 전체 삭제';
   if (f === 'weekly' && !editDays.length && form.date.value) editDays = [weekday(toNum(form.date.value))];
   document.querySelectorAll('#editor .repeat-opt').forEach(e => { e.hidden = !f; });
   $('endDateWrap').hidden = !!f; // 며칠짜리 일정은 반복 없을 때만
@@ -745,49 +766,65 @@ $('clInput').addEventListener('keydown', e => {
   renderChecklist();
 });
 
-// 시간 칸: 누르면 1시간 단위 목록, 직접 입력도 가능 (예: 14:15)
-const timeMenu = $('timeMenu');
-function showTimeMenu() {
-  const values = ['', ...Array.from({ length: 24 }, (_, i) => `${pad(i)}:00`)];
-  timeMenu.replaceChildren(...values.map(v => {
-    const b = h('button', v && v === form.time.value ? 'on' : '', v || '시간 없음');
-    b.type = 'button';
-    b.addEventListener('mousedown', e => e.preventDefault()); // 입력칸 포커스 유지
-    b.addEventListener('click', () => { form.time.value = v; form.time.setCustomValidity(''); timeMenu.hidden = true; });
-    return b;
-  }));
-  timeMenu.hidden = false;
-  const t = parseTime(form.time.value);
-  timeMenu.scrollTop = timeMenu.children[t ? 1 + +t.slice(0, 2) : 10].offsetTop - 40; // 입력된 시각 근처, 없으면 09:00
+// 시간 칸 (시작·끝): 누르면 1시간 단위 목록, 직접 입력도 가능 (예: 14:15). near() = 비어 있을 때 목록을 보여줄 위치
+function timeField(input, menu, near) {
+  const show = () => {
+    const values = ['', ...Array.from({ length: 24 }, (_, i) => `${pad(i)}:00`)];
+    menu.replaceChildren(...values.map(v => {
+      const b = h('button', v && v === input.value ? 'on' : '', v || '시간 없음');
+      b.type = 'button';
+      b.addEventListener('mousedown', e => e.preventDefault()); // 입력칸 포커스 유지
+      b.addEventListener('click', () => { input.value = v; input.setCustomValidity(''); menu.hidden = true; });
+      return b;
+    }));
+    menu.hidden = false;
+    const t = parseTime(input.value);
+    menu.scrollTop = menu.children[t ? 1 + +t.slice(0, 2) : near()].offsetTop - 40; // 입력된 시각 근처
+  };
+  input.addEventListener('focus', show);
+  input.addEventListener('click', () => { if (menu.hidden) show(); });
+  input.addEventListener('input', () => { input.setCustomValidity(''); menu.hidden = true; });
+  input.addEventListener('blur', () => {
+    menu.hidden = true;
+    const t = parseTime(input.value);
+    if (t) input.value = t;
+  });
 }
-form.time.addEventListener('focus', showTimeMenu);
-form.time.addEventListener('click', () => { if (timeMenu.hidden) showTimeMenu(); });
-form.time.addEventListener('input', () => { form.time.setCustomValidity(''); timeMenu.hidden = true; });
-form.time.addEventListener('blur', () => {
-  timeMenu.hidden = true;
-  const t = parseTime(form.time.value);
-  if (t) form.time.value = t;
-});
+timeField(form.time, $('timeMenu'), () => 10); // 비어 있으면 09:00 근처
+// 끝 시간: 비어 있으면 시작 1시간 뒤 근처
+timeField(form.endTime, $('endTimeMenu'), () => { const t = parseTime(form.time.value); return t ? Math.min(24, 2 + +t.slice(0, 2)) : 10; });
 
 form.addEventListener('submit', e => {
   e.preventDefault();
-  const time = parseTime(form.time.value);
-  if (time === null) {
-    form.time.setCustomValidity('시간은 9, 14:30, 1415 처럼 입력해 주세요');
-    form.time.reportValidity();
+  const time = parseTime(form.time.value), endTime = parseTime(form.endTime.value);
+  if (time === null || endTime === null) {
+    const bad = time === null ? form.time : form.endTime;
+    bad.setCustomValidity('시간은 9, 14:30, 1415 처럼 입력해 주세요');
+    bad.reportValidity();
     return;
   }
-  const one = isSeriesEdit() && editScope === 'one';
+  // 같은 날 끝나는데 끝 시간이 시작보다 앞 (여러 날 일정이면 끝나는 날의 시각이라 괜찮음)
+  if (time && endTime && endTime <= time && !(form.endDate.value > form.date.value)) {
+    form.endTime.setCustomValidity('끝나는 시간은 시작 시간보다 뒤로 해 주세요');
+    form.endTime.reportValidity();
+    return;
+  }
+  // 반복 일정: 이 날만 / 이후 모두 / 모든 반복 (첫 회차에서 '이후 모두' = 모든 반복)
+  let scope = isSeriesEdit() ? editScope : 'all';
+  if (scope === 'after' && editingDate === editing.date) scope = 'all';
+  const one = scope === 'one';
   if (!one && form.freq.value && !form.date.value) {
     form.date.setCustomValidity('반복하려면 시작 날짜가 필요해요');
     form.date.reportValidity();
     return;
   }
-  const it = one ? detach(editing, editingDate) : editing, f = one ? '' : form.freq.value;
+  const it = one ? detach(editing, editingDate) : scope === 'after' ? splitSeries(editing, editingDate) : editing;
+  const f = one ? '' : form.freq.value;
   it.title = form.title.value.trim();
   it.date = form.date.value || null;
   it.endDate = it.date && !f && form.endDate.value > it.date ? form.endDate.value : null;
   it.time = time || null;
+  it.endTime = time && endTime ? endTime : null;
   it.cat = editCat;
   it.bucket = editBuckets().some(b => b.id === editBucket) ? editBucket : null;
   it.dday = form.dday.checked;
@@ -823,7 +860,9 @@ function removeItem(it) {
   return true;
 }
 $('delBtn').addEventListener('click', () => {
-  if (isSeriesEdit() && editScope === 'one') { editing.skipDates.push(editingDate); touch(editing); }
+  const scope = isSeriesEdit() ? editScope : 'all';
+  if (scope === 'one') { editing.skipDates.push(editingDate); touch(editing); }
+  else if (scope === 'after' && editingDate !== editing.date) endSeries(editing, editingDate);
   else if (!removeItem(editing)) return;
   editor.close();
   save();
