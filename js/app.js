@@ -1005,7 +1005,7 @@ function memberPanel(c, owner) {
 async function shareCat(c) {
   const n = live().filter(i => i.cat === c.id).length;
   if (!confirm(`'${c.name}' 카테고리를 공유 캘린더로 바꿀까요?\n이 카테고리의 일정 ${n}개를 초대한 사람도 보고 고칠 수 있게 돼요.`)) return;
-  try { membersFor = await window.sharing.share(c); } catch (e) { alert(`공유하지 못했어요: ${e.code || e.message}`); }
+  try { await window.sharing.share(c); } catch (e) { alert(`공유하지 못했어요: ${e.code || e.message}`); }
   renderCatEditor();
 }
 async function leaveCat(c, owner) {
@@ -1017,7 +1017,8 @@ async function leaveCat(c, owner) {
   try { await (owner ? window.sharing.remove(c) : window.sharing.leave(c)); } catch (e) { alert(`하지 못했어요: ${e.code || e.message}`); }
   renderCatEditor();
 }
-$('settingsBtn').addEventListener('click', () => { renderCatEditor(); syncUIControls(); $('settings').showModal(); });
+// 공유 캘린더 멤버 목록은 설정을 열 때마다 접힌 채로 ('공유 n명'을 눌러야 펼침)
+$('settingsBtn').addEventListener('click', () => { membersFor = null; renderCatEditor(); syncUIControls(); $('settings').showModal(); });
 $('closeSettingsBtn').addEventListener('click', () => $('settings').close());
 $('addCatBtn').addEventListener('click', () => {
   // 아직 안 쓴 팔레트 색부터
