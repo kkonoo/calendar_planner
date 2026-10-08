@@ -179,6 +179,7 @@ function card(it, showGroup, ctx) {
   if (due) meta.append(due);
   const p = clProgress(it);
   if (p) meta.append(h('span', '', `☑ ${p}`));
+  if (byName(it)) meta.append(h('span', '', `👤 ${byName(it)}`));
   if (meta.childElementCount) e.append(meta);
   e.addEventListener('click', () => openEditor(it, taskDate(it)));
   draggable(e, it, it.date);

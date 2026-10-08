@@ -140,8 +140,14 @@ const byTime = (a, b) => (a.time || '').localeCompare(b.time || '') || a.created
 // 하루 안 순서: 완료는 맨 밑, 그 안에서 할 일(끌어서 정한 순서 dayOrder) → 일정(시간순)
 const byDay = s => (a, b) => isDone(a, s) - isDone(b, s) || !!a.time - !!b.time
   || (a.time ? byTime(a, b) : (a.dayOrder ?? Infinity) - (b.dayOrder ?? Infinity) || a.createdAt - b.createdAt);
-const itemsOn = s => live().filter(i => occursOn(i, s)).sort(byDay(s));
+const itemsOn = s => shown().filter(i => occursOn(i, s)).sort(byDay(s));
 const catColor = id => (db.categories.find(c => c.id === id) || {}).color || null;
+const isSharedCat = id => !!(db.categories.find(c => c.id === id) || {}).shared;
+// 공유 캘린더 일정이면 넣은 사람 이름 (내가 넣은 건 '')
+const byName = it => (it.by && it.by.uid !== window.me?.uid && isSharedCat(it.cat) ? it.by.name : '');
+// 달력 화면에 보일 일정: 전체 / 개인 / 공유 (prefs.scope, 기기별). 공유 캘린더가 없으면 전체
+const scope = () => (db.categories.some(c => c.shared) && prefs.scope) || 'all';
+const shown = () => { const s = scope(); return s === 'all' ? live() : live().filter(it => isSharedCat(it.cat) === (s === 'shared')); };
 // 체크리스트 진행 '2/5' (없으면 '')
 const clProgress = it => { const c = it.checklist || []; return c.length ? `${c.filter(x => x.done).length}/${c.length}` : ''; };
 
@@ -209,6 +215,8 @@ function render() {
   const v = prefs.view || 'calendar';
   document.body.dataset.view = v;
   document.querySelectorAll('#viewSeg [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+  $('scopeSeg').hidden = v !== 'calendar' || !db.categories.some(c => c.shared);
+  document.querySelectorAll('#scopeSeg [data-show]').forEach(b => b.classList.toggle('on', b.dataset.show === scope()));
   if (v === 'board') return renderBoard();
   if (v === 'table') return renderTable();
   $('monthTitle').textContent = `${view.y}년 ${view.m}월`;
@@ -300,7 +308,7 @@ function renderGrid(grid = $('grid'), v = view) {
   const room = phone ? Infinity : Math.max(1, Math.floor((cell0.clientHeight - top - 2) / lineH));
 
   // 여러 날 일정: 주(줄)마다 막대로 그리고, 겹치면 아래 줄로
-  const spans = live().filter(isSpan);
+  const spans = shown().filter(isSpan);
   for (let w = 0; w < weeks; w++) {
     const w0 = start + w * 7, w6 = w0 + 6, lanes = [], used = [0, 0, 0, 0, 0, 0, 0];
     spans.filter(it => toNum(it.date) <= w6 && toNum(it.endDate) >= w0)
@@ -404,6 +412,7 @@ function itemRow(it, s, extra) {
   if (it.place) li.append(h('span', 'meta place', `📍 ${it.place}`));
   const p = clProgress(it);
   if (p) li.append(h('span', 'meta', `☑ ${p}`));
+  if (byName(it)) li.append(h('span', 'meta', `👤 ${byName(it)}`));
   if (extra) li.append(extra);
   li.addEventListener('click', () => openEditor(it, s));
   return li;
@@ -447,7 +456,7 @@ function renderDay() {
 
 function renderDday() {
   const today = todayStr();
-  const rows = live().filter(i => i.dday && i.date)
+  const rows = shown().filter(i => i.dday && i.date)
     .map(it => ({ it, next: nextOccurrence(it, today) }))
     .filter(r => r.next)
     .sort((a, b) => a.next.localeCompare(b.next));
@@ -462,7 +471,7 @@ function renderDday() {
 }
 
 function renderTodo() {
-  const items = live().filter(i => !i.date).sort((a, b) => a.done - b.done || a.createdAt - b.createdAt);
+  const items = shown().filter(i => !i.date).sort((a, b) => a.done - b.done || a.createdAt - b.createdAt);
   $('todoList').replaceChildren(...(items.length ? items.map(it => {
     const li = itemRow(it, null);
     draggable(li, it, null);
@@ -473,8 +482,9 @@ function renderTodo() {
 function renderCatPick(box, current, onPick) {
   const opts = [{ id: null, name: '없음', color: null }, ...db.categories];
   box.replaceChildren(...opts.map(c => {
-    const b = h('button', 'cat-pill' + (c.id === current ? ' on' : ''), c.name);
+    const b = h('button', 'cat-pill' + (c.id === current ? ' on' : '') + (c.shared ? ' shared' : ''), c.name);
     b.type = 'button';
+    if (c.shared) b.title = '공유 캘린더 — 멤버 모두가 보고 고칠 수 있어요';
     if (c.color) b.style.setProperty('--c', tone(c.color));
     b.addEventListener('click', () => onPick(c.id));
     return b;
@@ -891,8 +901,9 @@ const PASTELS = [
   '#F4978E', '#F8B88B', '#F5D27A', '#C5D98F', '#9FCB8E', '#7FCFB8', '#84CDE0', '#8DB6F2',
   '#A7A3F2', '#B99AF0', '#DDA0E5', '#F3A6C8', '#D2AE8E', '#A88B73', '#9AA5B1', '#C7C1B8',
 ];
-let paletteFor = null; // 팔레트를 펼친 카테고리 id
+let paletteFor = null, membersFor = null; // 팔레트·멤버 목록을 펼친 카테고리 id
 function renderCatEditor() {
+  $('shareHint').hidden = !window.me;
   $('catEditor').replaceChildren(...db.categories.flatMap(c => {
     const row = h('div', 'cat-row');
     const color = h('button', 'cat-swatch');
@@ -904,16 +915,31 @@ function renderCatEditor() {
     const name = h('input');
     name.value = c.name;
     name.addEventListener('change', () => { c.name = name.value.trim() || c.name; save(); });
+    row.append(color, name);
+    // 공유: 로그인했을 때만. 공유 캘린더는 멤버 수 버튼으로 멤버 목록 펼치기
+    if (c.shared) {
+      const mem = h('button', 'btn small', `공유 ${c.shared.emails.length}명`);
+      mem.addEventListener('click', () => { membersFor = membersFor === c.id ? null : c.id; renderCatEditor(); });
+      row.append(mem);
+    } else if (window.me) {
+      const share = h('button', 'btn small', '공유');
+      share.title = '다른 구글 계정과 같이 쓰는 캘린더로 바꾸기';
+      share.addEventListener('click', () => shareCat(c));
+      row.append(share);
+    }
+    const owner = c.shared && window.me?.uid === c.shared.owner;
     const del = h('button', 'icon-btn small', '✕');
-    del.title = '카테고리 삭제';
+    del.title = !c.shared ? '카테고리 삭제' : owner ? '공유 캘린더 삭제' : '공유 캘린더에서 나가기';
     del.addEventListener('click', () => {
+      if (c.shared) return leaveCat(c, owner);
       if (!confirm(`'${c.name}' 카테고리를 삭제할까요? 이 카테고리의 일정은 색이 없어져요.`)) return;
       db.categories = db.categories.filter(x => x !== c);
       db.items.forEach(i => { if (i.cat === c.id) { i.cat = null; touch(i); } });
       save();
       renderCatEditor();
     });
-    row.append(color, name, del);
+    row.append(del);
+    if (c.shared && membersFor === c.id) return [row, memberPanel(c, owner)];
     if (paletteFor !== c.id) return [row];
 
     const palette = h('div', 'cat-palette');
@@ -934,6 +960,62 @@ function renderCatEditor() {
     palette.append(custom);
     return [row, palette];
   }));
+}
+
+// ---------- 설정: 공유 캘린더 (저장은 sync.js 의 window.sharing) ----------
+// 멤버 = 구글 이메일. 초대·내보내기는 만든 사람만, 일정은 멤버 모두 고침
+function memberPanel(c, owner) {
+  const box = h('div', 'cat-members');
+  for (const e of c.shared.emails) {
+    const row = h('div', 'member');
+    row.append(h('span', 'member-email', e));
+    if (e === c.shared.ownerEmail) row.append(h('span', 'hint', '만든 사람'));
+    else if (owner) {
+      const x = h('button', 'icon-btn small', '✕');
+      x.title = '내보내기';
+      x.addEventListener('click', () => {
+        if (!confirm(`${e} 님을 '${c.name}'에서 내보낼까요?`)) return;
+        c.shared.emails = c.shared.emails.filter(y => y !== e);
+        save();
+        renderCatEditor();
+      });
+      row.append(x);
+    }
+    box.append(row);
+  }
+  if (owner) {
+    const f = h('form', 'member-add');
+    const input = h('input');
+    input.type = 'email';
+    input.required = true;
+    input.placeholder = '초대할 구글 이메일';
+    f.append(input, h('button', 'btn', '초대'));
+    f.addEventListener('submit', ev => {
+      ev.preventDefault();
+      const v = input.value.trim().toLowerCase();
+      if (!c.shared.emails.includes(v)) c.shared.emails = [...c.shared.emails, v];
+      save();
+      renderCatEditor();
+    });
+    box.append(f);
+  }
+  box.append(h('p', 'hint', `초대한 사람이 ${location.origin}${location.pathname} 에서 그 구글 계정으로 로그인하면 이 카테고리가 생겨요. 멤버는 모두 일정을 보고 고칠 수 있어요.`));
+  return box;
+}
+async function shareCat(c) {
+  const n = live().filter(i => i.cat === c.id).length;
+  if (!confirm(`'${c.name}' 카테고리를 공유 캘린더로 바꿀까요?\n이 카테고리의 일정 ${n}개를 초대한 사람도 보고 고칠 수 있게 돼요.`)) return;
+  try { membersFor = await window.sharing.share(c); } catch (e) { alert(`공유하지 못했어요: ${e.code || e.message}`); }
+  renderCatEditor();
+}
+async function leaveCat(c, owner) {
+  if (!window.me) { alert('로그인한 뒤에 할 수 있어요.'); return; }
+  const n = live().filter(i => i.cat === c.id).length;
+  if (!confirm(owner
+    ? `'${c.name}' 공유 캘린더를 삭제할까요?\n모든 멤버에게서 이 캘린더의 일정 ${n}개가 사라져요. 남길 일정은 먼저 다른 카테고리로 옮겨 주세요.`
+    : `'${c.name}' 공유 캘린더에서 나갈까요?\n이 캘린더의 일정 ${n}개가 내 화면에서 사라져요. (다른 멤버에게는 그대로 있어요)`)) return;
+  try { await (owner ? window.sharing.remove(c) : window.sharing.leave(c)); } catch (e) { alert(`하지 못했어요: ${e.code || e.message}`); }
+  renderCatEditor();
 }
 $('settingsBtn').addEventListener('click', () => { renderCatEditor(); syncUIControls(); $('settings').showModal(); });
 $('closeSettingsBtn').addEventListener('click', () => $('settings').close());
@@ -1088,6 +1170,11 @@ async function finishSwipe(dx, peek, cancel) {
   peek[1].remove();
 }
 $('todayBtn').addEventListener('click', () => select(todayStr()));
+document.querySelectorAll('#scopeSeg [data-show]').forEach(b => b.addEventListener('click', () => {
+  prefs.scope = b.dataset.show;
+  savePrefs();
+  render();
+}));
 let resizeTimer;
 addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderGrid, 150); });
 

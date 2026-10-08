@@ -24,6 +24,11 @@
     <button class="btn" id="todayBtn">오늘</button>
   </div>
   <div class="tools">
+    <div class="seg" id="scopeSeg" title="달력에 보일 일정" hidden>
+      <button type="button" data-show="all">전체</button>
+      <button type="button" data-show="mine">개인</button>
+      <button type="button" data-show="shared">공유</button>
+    </div>
     <div class="search">
       <input type="search" id="searchInput" placeholder="검색 (Ctrl+K)" autocomplete="off">
       <div class="search-results" id="searchResults" hidden></div>
@@ -211,6 +216,7 @@
   <p class="hint">달력 화면의 패널 크기는 패널 사이 경계를 마우스로 끌어서 바꿔요.</p>
 
   <h2>카테고리</h2>
+  <p class="hint" id="shareHint" hidden>'공유'를 누르면 가족·연구실처럼 다른 구글 계정과 같이 쓰는 캘린더가 돼요.</p>
   <div id="catEditor"></div>
   <button class="btn" id="addCatBtn">+ 카테고리 추가</button>
 

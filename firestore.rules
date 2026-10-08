@@ -1,9 +1,31 @@
 rules_version = '2';
 // 각자 자기 계정의 데이터(users/{내 uid}/...)만 읽고 쓸 수 있음
+// 공유 캘린더(shared/{id})는 emails 에 든 구글 계정만. 일정은 멤버 모두 고칠 수 있고,
+// 멤버 초대·내보내기·삭제는 만든 사람(owner)만 (멤버는 자기 이메일만 빼서 나갈 수 있음)
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{uid}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function me() { return request.auth.token.email.lower(); }
+
+    match /shared/{cal} {
+      allow read: if signedIn() && me() in resource.data.emails;
+      allow create: if signedIn() && request.resource.data.owner == request.auth.uid
+        && request.resource.data.ownerEmail == me() && me() in request.resource.data.emails;
+      allow update: if signedIn() && me() in resource.data.emails
+        && request.resource.data.owner == resource.data.owner
+        && request.resource.data.ownerEmail == resource.data.ownerEmail
+        && (request.auth.uid == resource.data.owner
+          || request.resource.data.emails == resource.data.emails
+          || request.resource.data.emails == resource.data.emails.removeAll([me()]));
+      allow delete: if signedIn() && request.auth.uid == resource.data.owner;
+
+      match /items/{id} {
+        allow read, write: if signedIn() && me() in get(/databases/$(database)/documents/shared/$(cal)).data.emails;
+      }
     }
   }
 }
