@@ -977,13 +977,15 @@ $('themeBtn').addEventListener('click', () => {
 });
 
 // ---------- 설정: 카테고리 ----------
-// 카테고리 색 고르기용 파스텔 팔레트 (마지막 + 는 직접 고르기)
+// 카테고리 색 고르기용 파스텔 팔레트 (마지막 + 는 색 추가)
 const PASTELS = [
   '#F4978E', '#F8B88B', '#F5D27A', '#C5D98F', '#9FCB8E', '#7FCFB8', '#84CDE0', '#8DB6F2',
   '#A7A3F2', '#B99AF0', '#DDA0E5', '#F3A6C8', '#D2AE8E', '#A88B73', '#9AA5B1', '#C7C1B8',
 ];
-// 길게 눌러 팔레트에서 뺀 색은 db.paletteOff (계정에 동기화)
-const pastels = () => PASTELS.filter(p => !(db.paletteOff || []).includes(p));
+// + 를 누르면 나오는 추천 색 (파스텔보다 차분한 중간 톤)
+const MORE_COLORS = ['#5E7A99', '#6E9A84', '#C2785E', '#C9A24D', '#9A7AA0'];
+// 내 팔레트 = db.palette (+ 로 추가, 길게 눌러 삭제, 계정에 동기화). 손댄 적 없으면 기본 파스텔
+const paletteColors = () => db.palette || PASTELS;
 // 길게 누르기 (폰·마우스 모두): 0.5초 누르고 있으면 fn.
 // 손을 뗄 때 따라오는 클릭은 무시 (fn이 다시 그려서 그 자리에 다른 버튼이 와 있어도). 새로 누르면 다시 보통 클릭
 function onLongPress(el, fn) {
@@ -1041,7 +1043,7 @@ function renderCatEditor() {
     if (paletteFor !== c.id) return [row];
 
     const palette = h('div', 'cat-palette');
-    for (const col of pastels()) {
+    for (const col of paletteColors()) {
       const b = h('button', 'swatch' + (col.toLowerCase() === c.color.toLowerCase() ? ' on' : ''));
       b.type = 'button';
       b.title = '길게 누르면 삭제';
@@ -1049,21 +1051,55 @@ function renderCatEditor() {
       b.addEventListener('click', () => pick(col));
       onLongPress(b, () => {
         if (!confirm('이 색을 팔레트에서 삭제할까요?')) return;
-        db.paletteOff = [...(db.paletteOff || []), col];
+        db.palette = paletteColors().filter(p => p !== col);
         save();
         renderCatEditor();
       });
       palette.append(b);
     }
-    const custom = h('label', 'swatch custom', '+');
-    custom.title = '직접 고르기';
-    const input = h('input');
-    input.type = 'color';
-    input.value = c.color;
-    input.addEventListener('change', () => pick(input.value));
-    custom.append(input);
+    const custom = h('button', 'swatch custom', '+');
+    custom.type = 'button';
+    custom.title = '색 추가';
     palette.append(custom);
-    return [row, palette];
+
+    // + : 추천 색 또는 색 코드 → 팔레트에 추가하고 이 카테고리에 바로 적용
+    const addColor = col => {
+      if (!paletteColors().some(p => p.toLowerCase() === col.toLowerCase())) db.palette = [...paletteColors(), col];
+      pick(col);
+    };
+    const adder = h('form', 'color-add');
+    adder.hidden = true;
+    custom.addEventListener('click', () => { adder.hidden = !adder.hidden; });
+    const examples = h('div');
+    for (const col of MORE_COLORS) {
+      const b = h('button', 'swatch');
+      b.type = 'button';
+      b.title = col;
+      b.style.background = col;
+      b.addEventListener('click', () => addColor(col));
+      examples.append(b);
+    }
+    const preview = h('span', 'swatch none');
+    const code = h('input');
+    code.required = true;
+    code.pattern = '#?[0-9A-Fa-f]{6}';
+    code.title = '색 코드 6자리 (예: #6E9A84)';
+    code.placeholder = '#6E9A84';
+    code.maxLength = 7;
+    code.autocomplete = 'off';
+    code.spellcheck = false;
+    code.setAttribute('autocapitalize', 'off');
+    code.enterKeyHint = 'done';
+    const hex = () => (code.validity.valid ? '#' + code.value.replace('#', '').toUpperCase() : null);
+    code.addEventListener('input', () => {
+      preview.classList.toggle('none', !hex());
+      preview.style.background = hex() || '';
+    });
+    const typed = h('div');
+    typed.append(preview, code, h('button', 'btn small', '추가'));
+    adder.append(examples, typed);
+    adder.addEventListener('submit', ev => { ev.preventDefault(); addColor(hex()); });
+    return [row, palette, adder];
   }));
 }
 
@@ -1128,7 +1164,7 @@ $('closeSettingsBtn').addEventListener('click', () => $('settings').close());
 $('addCatBtn').addEventListener('click', () => {
   // 아직 안 쓴 팔레트 색부터
   const used = db.categories.map(c => c.color.toLowerCase());
-  const id = uid(), pal = pastels();
+  const id = uid(), pal = paletteColors();
   db.categories.push({ id, name: '새 카테고리', color: pal.find(p => !used.includes(p.toLowerCase())) || pal[0] || PASTELS[0] });
   paletteFor = id;
   save();

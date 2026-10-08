@@ -638,8 +638,13 @@ textarea:focus { border-color: var(--accent); }
 .cat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .cat-swatch { flex: none; width: 30px; height: 30px; padding: 0; border: 2px solid var(--surface); border-radius: 50%; box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
 .cat-palette { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 12px 38px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.swatch.custom { position: relative; display: grid; place-items: center; background: transparent; box-shadow: inset 0 0 0 2px var(--faint); color: var(--muted); font-size: 16px; }
-.swatch.custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.swatch.custom { display: grid; place-items: center; background: transparent; box-shadow: inset 0 0 0 2px var(--faint); color: var(--muted); font-size: 16px; }
+/* + 색 추가: 추천 색 / 색 코드 입력 */
+.color-add { margin: -4px 0 12px 38px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.color-add > div { display: flex; align-items: center; gap: 8px; }
+.color-add > div + div { margin-top: 10px; }
+.color-add span.swatch { flex: none; cursor: default; }
+.color-add input { width: 110px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-variant-numeric: tabular-nums; }
 .cat-row input:not([type="color"]) { flex: 1; min-width: 0; }
 .btn.small { padding: 4px 10px; font-size: 12px; }
 #addCatBtn { margin-bottom: 14px; }
