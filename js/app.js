@@ -156,6 +156,8 @@ const shown = () => {
   if (s === 'all') return live();
   return live().filter(it => (s === 'shared' ? isSharedCat(it.cat) : !isSharedCat(it.cat) || alsoOf(it).length > 0));
 };
+// 달력 화면의 색: 개인 보기에선 공유 일정도 내가 추가한 (첫) 카테고리 색, 전체·공유 보기는 대표(공유 캘린더) 색
+const viewCat = it => (scope() === 'mine' && isSharedCat(it.cat) && alsoOf(it)[0]) || it.cat;
 // 체크리스트 진행 '2/5' (없으면 '')
 const clProgress = it => { const c = it.checklist || []; return c.length ? `${c.filter(x => x.done).length}/${c.length}` : ''; };
 
@@ -364,7 +366,7 @@ function cellClick(s) {
 // 시간 있음 = 일정 (색 배경 + 동그라미 체크 + 시간), 시간 없음 = 할 일 (네모 체크)
 function chip(it, s) {
   const e = h('div', 'chip' + (it.time ? '' : ' task') + (isDone(it, s) ? ' done' : ''));
-  setColor(e, it.cat);
+  setColor(e, viewCat(it));
   e.append(checkBox(it, s));
   if (it.time) e.append(h('span', 't', it.time));
   e.append(it.title);
@@ -399,7 +401,7 @@ function spanBar(it, w, from, to, top, contLeft, contRight) {
   const e = h('div', 'span-bar' + (isDone(it) ? ' done' : '') + (contLeft ? ' cont-l' : '') + (contRight ? ' cont-r' : ''));
   e.style.gridArea = `${w + 1} / ${from + 1} / ${w + 2} / ${to + 2}`;
   e.style.marginTop = `${top}px`;
-  setColor(e, it.cat);
+  setColor(e, viewCat(it));
   e.append(checkBox(it, it.date));
   if (it.time) e.append(h('span', 't', it.time));
   e.append(it.title);
@@ -411,7 +413,7 @@ function spanBar(it, w, from, to, top, contLeft, contRight) {
 
 function itemRow(it, s, extra) {
   const li = h('li', (it.time ? '' : 'task ') + (isDone(it, s) ? 'done' : ''));
-  setColor(li, it.cat);
+  setColor(li, viewCat(it));
   const check = h('button', 'check');
   check.setAttribute('aria-label', '완료 표시');
   check.addEventListener('click', e => { e.stopPropagation(); toggleDone(it, s); });
@@ -471,7 +473,7 @@ function renderDday() {
     .sort((a, b) => a.next.localeCompare(b.next));
   $('ddayList').replaceChildren(...(rows.length ? rows.map(({ it, next }) => {
     const li = h('li');
-    setColor(li, it.cat);
+    setColor(li, viewCat(it));
     const diff = toNum(next) - toNum(today);
     li.append(h('span', 'title', it.title), h('span', 'meta', fmtShort(next)), h('span', 'dd', diff ? `D-${diff}` : 'D-day'));
     li.addEventListener('click', () => openEditor(it, next));
