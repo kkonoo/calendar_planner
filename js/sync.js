@@ -1,6 +1,6 @@
 // 구글 계정 로그인 + 기기 간 동기화 (Firebase Auth + Firestore).
 // firebase-config.js 가 비어 있으면 아무것도 하지 않음 → 이 브라우저에만 저장.
-// 저장 위치: users/{uid}/items/{일정 id}, users/{uid}/meta/categories (카테고리), users/{uid}/meta/days (날짜 칠하기), users/{uid}/meta/also (추가 카테고리)
+// 저장 위치: users/{uid}/items/{일정 id}, users/{uid}/meta/categories (카테고리), users/{uid}/meta/days (날짜 칠하기), users/{uid}/meta/also (추가 카테고리), users/{uid}/meta/palette (팔레트에서 뺀 색)
 // 공유 캘린더: shared/{캘린더 id} = { name, color, buckets, owner, ownerEmail, emails }, 일정은 shared/{캘린더 id}/items/{일정 id}
 //   emails 에 든 구글 계정만 읽고 씀 (firestore.rules). 앱에서는 카테고리 하나로 보임 (category.shared = { owner, ownerEmail, emails })
 // app.js 의 db, save, persist, render 등을 그대로 사용.
@@ -24,6 +24,7 @@ async function start() {
     categories: { get: () => db.categories.filter(c => !c.shared), set: v => { db.categories = [...v, ...db.categories.filter(c => c.shared)]; } },
     days: { get: () => db.dayColors || {}, set: v => { db.dayColors = v; } },
     also: { get: () => db.also || {}, set: v => { db.also = v; } }, // 추가 카테고리 (공유 일정에 붙인 것도 내 계정에만)
+    palette: { get: () => db.paletteOff || [], set: v => { db.paletteOff = v; } }, // 카테고리 색 팔레트에서 뺀 색
   };
   let uid = null, email = '', unsub = [], calUnsub = {}, synced = {}, home = {}, metaJSON = {}, calJSON = {}, ready = {}, loaded = {};
   // 이 기기가 서버와 어디까지 맞췄는지. db 안에 같이 저장 → 로그아웃·계정 변경으로 db가 바뀌면 같이 없어짐

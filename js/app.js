@@ -982,6 +982,23 @@ const PASTELS = [
   '#F4978E', '#F8B88B', '#F5D27A', '#C5D98F', '#9FCB8E', '#7FCFB8', '#84CDE0', '#8DB6F2',
   '#A7A3F2', '#B99AF0', '#DDA0E5', '#F3A6C8', '#D2AE8E', '#A88B73', '#9AA5B1', '#C7C1B8',
 ];
+// 길게 눌러 팔레트에서 뺀 색은 db.paletteOff (계정에 동기화)
+const pastels = () => PASTELS.filter(p => !(db.paletteOff || []).includes(p));
+// 길게 누르기 (폰·마우스 모두): 0.5초 누르고 있으면 fn.
+// 손을 뗄 때 따라오는 클릭은 무시 (fn이 다시 그려서 그 자리에 다른 버튼이 와 있어도). 새로 누르면 다시 보통 클릭
+function onLongPress(el, fn) {
+  let timer = null;
+  el.addEventListener('pointerdown', () => {
+    timer = setTimeout(() => {
+      const eat = e => { e.stopPropagation(); e.preventDefault(); };
+      addEventListener('click', eat, { capture: true, once: true });
+      addEventListener('pointerdown', () => removeEventListener('click', eat, true), { capture: true, once: true });
+      fn();
+    }, 500);
+  });
+  for (const t of ['pointerup', 'pointerleave', 'pointercancel']) el.addEventListener(t, () => clearTimeout(timer));
+  el.addEventListener('contextmenu', e => e.preventDefault());
+}
 let paletteFor = null, membersFor = null; // 팔레트·멤버 목록을 펼친 카테고리 id
 function renderCatEditor() {
   $('shareHint').hidden = !window.me;
@@ -1024,11 +1041,18 @@ function renderCatEditor() {
     if (paletteFor !== c.id) return [row];
 
     const palette = h('div', 'cat-palette');
-    for (const col of PASTELS) {
+    for (const col of pastels()) {
       const b = h('button', 'swatch' + (col.toLowerCase() === c.color.toLowerCase() ? ' on' : ''));
       b.type = 'button';
+      b.title = '길게 누르면 삭제';
       b.style.background = col;
       b.addEventListener('click', () => pick(col));
+      onLongPress(b, () => {
+        if (!confirm('이 색을 팔레트에서 삭제할까요?')) return;
+        db.paletteOff = [...(db.paletteOff || []), col];
+        save();
+        renderCatEditor();
+      });
       palette.append(b);
     }
     const custom = h('label', 'swatch custom', '+');
@@ -1104,8 +1128,8 @@ $('closeSettingsBtn').addEventListener('click', () => $('settings').close());
 $('addCatBtn').addEventListener('click', () => {
   // 아직 안 쓴 팔레트 색부터
   const used = db.categories.map(c => c.color.toLowerCase());
-  const id = uid();
-  db.categories.push({ id, name: '새 카테고리', color: PASTELS.find(p => !used.includes(p.toLowerCase())) || PASTELS[0] });
+  const id = uid(), pal = pastels();
+  db.categories.push({ id, name: '새 카테고리', color: pal.find(p => !used.includes(p.toLowerCase())) || pal[0] || PASTELS[0] });
   paletteFor = id;
   save();
   renderCatEditor();
