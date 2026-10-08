@@ -1097,7 +1097,19 @@ function renderCatEditor() {
     });
     const typed = h('div');
     typed.append(preview, code, h('button', 'btn small', '추가'));
-    adder.append(examples, typed);
+    // 팔레트를 손댔을 때만: 기본 파스텔로 되돌리기 (카테고리 색은 그대로)
+    const resetRow = h('div');
+    resetRow.hidden = !db.palette || db.palette.join() === PASTELS.join();
+    const reset = h('button', 'btn small', '기본 색으로 되돌리기');
+    reset.type = 'button';
+    reset.addEventListener('click', () => {
+      if (!confirm('팔레트를 기본 색으로 되돌릴까요?\n추가한 색은 빠지고 지운 색은 다시 생겨요.')) return;
+      db.palette = null;
+      save();
+      renderCatEditor();
+    });
+    resetRow.append(reset);
+    adder.append(examples, typed, resetRow);
     adder.addEventListener('submit', ev => { ev.preventDefault(); addColor(hex()); });
     return [row, palette, adder];
   }));
