@@ -762,9 +762,9 @@ function renderChecklist() {
 }
 $('clInput').addEventListener('keydown', e => {
   if (e.key !== 'Enter' || e.isComposing) return; // 한글 조합 중 Enter는 무시
-  e.preventDefault();
   const text = e.target.value.trim();
-  if (!text) return;
+  if (!text) return; // 비어 있으면 Enter = 저장
+  e.preventDefault();
   editChecklist.push({ id: uid(), text, done: false });
   e.target.value = '';
   renderChecklist();
@@ -852,6 +852,14 @@ form.addEventListener('submit', e => {
   db.also = also;
   editor.close();
   save();
+});
+// PC: 카테고리·날짜 등을 누른 뒤에도 Enter = 저장 (메모 줄바꿈, 체크리스트에 쓴 글 추가, 아래 버튼·지도 링크는 그대로)
+form.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.isComposing || e.defaultPrevented) return;
+  const t = e.target;
+  if (t.tagName === 'TEXTAREA' || t.tagName === 'A' || t.closest('.dialog-actions')) return;
+  e.preventDefault(); // 제목 칸 기본 제출과 겹치지 않게
+  form.requestSubmit();
 });
 $('cancelBtn').addEventListener('click', () => editor.close());
 // 삭제 표시 (보드 카드의 ✕도 같이 씀). 반복이면 확인 후 전부 — 취소하면 false
