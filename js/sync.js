@@ -269,6 +269,7 @@ async function start() {
     email = user ? (user.email || '').toLowerCase() : '';
     window.me = user ? { uid, email, name: user.displayName || email.split('@')[0] } : null;
     showAccount(user);
+    render(); // 로그인 전에 그린 화면은 내 이메일을 '나'로 몰라서 (담당자에 공유 멤버 목록의 내 이름이 나오고, 담당: 나 가 남처럼 걸러짐)
 
     if (!user) {
       // 로그아웃: 이 기기에 남은 계정 데이터는 지움 (계정에는 그대로 있음)
