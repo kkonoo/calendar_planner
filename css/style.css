@@ -646,10 +646,13 @@ textarea:focus { border-color: var(--accent); }
 /* 공유 캘린더 멤버 목록 */
 .cat-members { margin: 2px 0 12px 38px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
 .member { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; }
-.member-email { overflow-wrap: anywhere; }
+.member-email { min-width: 0; overflow-wrap: anywhere; }
+.member-name { flex: none; width: 6.5em; font-weight: 600; } /* 담당자로 보일 이름 (만든 사람은 고치는 칸) */
+input.member-name { font-weight: 400; }
+.member-name + .member-email { color: var(--muted); font-size: 12px; }
 .member .icon-btn.small { margin-left: auto; }
 .member-add { display: flex; gap: 6px; margin-top: 6px; }
-.member-add input { flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.member-add input:not(.member-name) { flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .cat-members .hint { margin: 8px 0 0; }
 .cat-pill.shared::after { content: "공유"; font-size: 10px; color: var(--muted); }
 #sharedPick { margin-top: 0; flex-wrap: nowrap; } /* 공유 보기의 캘린더 켜고 끄기 (상단) */
@@ -862,6 +865,8 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
   #searchInput { width: 100%; }
   .search-results { width: min(calc(100vw - 24px), 480px); } /* 검색칸이 좁아도 (옆에 개인·공유 버튼) 결과는 줄 전체 너비로 */
   #settings { margin: auto; }
+  .cat-members { margin-left: 0; } /* 멤버 이름 칸이 들어갈 자리 */
+  .member .hint { white-space: nowrap; }
   .task-view { flex-direction: column; gap: 10px; padding: 0 12px 16px; }
   .plan-nav { flex-direction: row; width: auto; overflow-x: auto; }
   .plan { flex: none; }

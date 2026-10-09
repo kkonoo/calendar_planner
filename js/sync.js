@@ -1,9 +1,10 @@
 // 구글 계정 로그인 + 기기 간 동기화 (Firebase Auth + Firestore).
 // firebase-config.js 가 비어 있으면 아무것도 하지 않음 → 이 브라우저에만 저장.
 // 저장 위치: users/{uid}/items/{일정 id}, users/{uid}/meta/categories (카테고리), users/{uid}/meta/days (날짜 칠하기), users/{uid}/meta/also (추가 카테고리)
-// 공유 캘린더: shared/{캘린더 id} = { name, color, buckets, owner, ownerEmail, emails, names }, 일정은 shared/{캘린더 id}/items/{일정 id}
-//   emails 에 든 구글 계정만 읽고 씀 (firestore.rules). 앱에서는 카테고리 하나로 보임 (category.shared = { owner, ownerEmail, emails, names })
-//   names = { 이메일: 구글 이름 } — 멤버마다 로그인할 때 자기 이름을 남김 (담당자 이름 표시용)
+// 공유 캘린더: shared/{캘린더 id} = { name, color, buckets, owner, ownerEmail, emails, nicks, names }, 일정은 shared/{캘린더 id}/items/{일정 id}
+//   emails 에 든 구글 계정만 읽고 씀 (firestore.rules). 앱에서는 카테고리 하나로 보임 (category.shared = { owner, ownerEmail, emails, nicks, names })
+//   담당자 이름 표시용: nicks = { 이메일: 이름 } — 만든 사람이 멤버 목록에서 적음 (지운 이름은 '')
+//                      names = { 이메일: 구글 이름 } — 멤버마다 로그인할 때 자기 이름을 남김 (nicks 가 없을 때)
 // app.js 의 db, save, persist, render 등을 그대로 사용.
 import { firebaseConfig } from './firebase-config.js';
 
@@ -61,7 +62,7 @@ async function start() {
   // 공유 캘린더 정보 (멤버가 바꿀 수 있는 것 + 만든 사람 + 멤버 이름 — 이름은 받기만 하고 올리기는 아래 subscribe 에서 내 것만)
   const calMeta = c => JSON.stringify({
     name: c.name, color: c.color, buckets: c.buckets || [],
-    owner: c.shared.owner, ownerEmail: c.shared.ownerEmail, emails: c.shared.emails, names: c.shared.names || {},
+    owner: c.shared.owner, ownerEmail: c.shared.ownerEmail, emails: c.shared.emails, nicks: c.shared.nicks || {}, names: c.shared.names || {},
   });
   function push() {
     if (!uid || !allReady()) return;
@@ -93,9 +94,9 @@ async function start() {
     for (const c of sharedCats()) {
       const json = calMeta(c);
       if (json !== calJSON[c.id]) {
-        // 멤버는 이름·색·그룹만 (멤버 목록은 만든 사람만 바꿈 → 오래된 목록으로 덮어쓰지 않게)
-        const { name, color, buckets, emails } = JSON.parse(json);
-        const data = { name, color, buckets, updatedAt: Date.now(), ...(c.shared.owner === uid ? { emails } : {}) };
+        // 멤버는 이름·색·그룹만 (멤버 목록·멤버 이름은 만든 사람만 바꿈 → 오래된 목록으로 덮어쓰지 않게)
+        const { name, color, buckets, emails, nicks } = JSON.parse(json);
+        const data = { name, color, buckets, updatedAt: Date.now(), ...(c.shared.owner === uid ? { emails, nicks } : {}) };
         add(`cal:${c.id}`, F.doc(fs, 'shared', c.id), data, { merge: true });
         calJSON[c.id] = json;
       }
@@ -157,7 +158,7 @@ async function start() {
 
   // 공유 캘린더 정보를 서버 값으로 (없으면 카테고리 맨 뒤에 추가)
   function upsertCal(id, d) {
-    const fresh = { id, name: d.name, color: d.color, buckets: d.buckets || [], shared: { owner: d.owner, ownerEmail: d.ownerEmail, emails: d.emails, names: d.names || {} } };
+    const fresh = { id, name: d.name, color: d.color, buckets: d.buckets || [], shared: { owner: d.owner, ownerEmail: d.ownerEmail, emails: d.emails, nicks: d.nicks || {}, names: d.names || {} } };
     const json = calMeta(fresh), c = db.categories.find(x => x.id === id);
     calJSON[id] = json;
     if (c && calMeta(c) === json) return false;

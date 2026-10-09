@@ -148,11 +148,11 @@ const byName = it => (it.by && it.by.uid !== window.me?.uid && isSharedCat(it.ca
 // 담당자: 공유 캘린더 일정에 멤버(구글 이메일)를 지정 (it.who = [이메일], 여럿 가능). 공유 캘린더 밖으로 옮긴 일정은 담당 없음
 const membersOf = id => ((db.categories.find(c => c.id === id) || {}).shared || {}).emails || [];
 const whoOf = it => (isSharedCat(it.cat) ? it.who || [] : []);
-// 이름: 나 / 그 사람이 로그인할 때 공유 캘린더에 남긴 구글 이름 / 이메일 앞부분
+// 이름: 나 / 만든 사람이 멤버 목록에서 적은 이름 / 그 사람이 로그인할 때 남긴 구글 이름 / 이메일 앞부분
 const memberName = e => {
   if (e === window.me?.email) return '나';
-  const c = db.categories.find(x => x.shared?.names?.[e]);
-  return c ? c.shared.names[e] : e.split('@')[0];
+  const pick = k => (db.categories.find(c => c.shared?.[k]?.[e]) || { shared: {} }).shared[k]?.[e];
+  return pick('nicks') || pick('names') || e.split('@')[0];
 };
 const whoText = it => whoOf(it).map(memberName).join('·');
 // 담당자별 보기 (prefs.who = 이메일, 기기별): 공유 캘린더 멤버 전부 (나 먼저). 고른 사람이 멤버가 아니게 되면 모두
@@ -1085,8 +1085,18 @@ function renderCatEditor() {
 // 멤버 = 구글 이메일. 초대·내보내기는 만든 사람만, 일정은 멤버 모두 고침
 function memberPanel(c, owner) {
   const box = h('div', 'cat-members');
+  const setNick = (e, v) => { c.shared.nicks = { ...c.shared.nicks, [e]: v }; }; // 지운 이름은 '' (서버에 합쳐 쓰기라 키를 못 지움)
   for (const e of c.shared.emails) {
     const row = h('div', 'member');
+    // 이름: 일정의 담당자로 이 이름이 보여요 (멤버 모두에게). 만든 사람만 고침
+    const nick = (c.shared.nicks || {})[e] || '';
+    if (owner) {
+      const name = h('input', 'member-name');
+      name.value = nick;
+      name.placeholder = '이름';
+      name.addEventListener('change', () => { setNick(e, name.value.trim()); save(); });
+      row.append(name);
+    } else if (nick) row.append(h('span', 'member-name', nick));
     row.append(h('span', 'member-email', e));
     if (e === c.shared.ownerEmail) row.append(h('span', 'hint', '만든 사람'));
     else if (owner) {
@@ -1108,17 +1118,20 @@ function memberPanel(c, owner) {
     input.type = 'email';
     input.required = true;
     input.placeholder = '초대할 구글 이메일';
-    f.append(input, h('button', 'btn', '초대'));
+    const name = h('input', 'member-name');
+    name.placeholder = '이름';
+    f.append(input, name, h('button', 'btn', '초대'));
     f.addEventListener('submit', ev => {
       ev.preventDefault();
       const v = input.value.trim().toLowerCase();
       if (!c.shared.emails.includes(v)) c.shared.emails = [...c.shared.emails, v];
+      if (name.value.trim()) setNick(v, name.value.trim());
       save();
       renderCatEditor();
     });
     box.append(f);
   }
-  box.append(h('p', 'hint', `초대한 사람이 ${location.origin}${location.pathname} 에서 그 구글 계정으로 로그인하면 이 카테고리가 생겨요. 멤버는 모두 일정을 보고 고칠 수 있어요.`));
+  box.append(h('p', 'hint', `초대한 사람이 ${location.origin}${location.pathname} 에서 그 구글 계정으로 로그인하면 이 카테고리가 생겨요. 멤버는 모두 일정을 보고 고칠 수 있어요.${owner ? ' 이름은 일정의 담당자로 보여요.' : ''}`));
   return box;
 }
 async function shareCat(c) {
