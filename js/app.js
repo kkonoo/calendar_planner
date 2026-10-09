@@ -155,10 +155,16 @@ const memberName = e => {
   return pick('nicks') || pick('names') || e.split('@')[0];
 };
 const whoText = it => whoOf(it).map(memberName).join('·');
-// 담당자별 보기 (prefs.who = 이메일, 기기별): 공유 캘린더 멤버 전부 (나 먼저). 고른 사람이 멤버가 아니게 되면 모두
+// 담당자별 보기 (prefs.who = 이메일, 기기별): 공유 캘린더 멤버 (나 먼저). 고른 사람이 목록에 없으면 모두
+// 달력 '개인' 보기에선 안 씀, '공유' 보기에선 켜 둔 공유 캘린더 멤버만 (보드·목록은 공유 캘린더 전부)
 // '나'는 공유 캘린더의 담당 없는 일정(모두 일정)도 같이 → 남이 맡은 것만 빠짐 (개인 일정은 '개인' 보기에서)
-const people = () => [...new Set(db.categories.flatMap(c => (c.shared ? c.shared.emails : [])))]
-  .sort((a, b) => (b === window.me?.email) - (a === window.me?.email) || memberName(a).localeCompare(memberName(b), 'ko'));
+const people = () => {
+  const cal = (prefs.view || 'calendar') === 'calendar';
+  if (cal && scope() === 'mine') return [];
+  const off = cal && scope() === 'shared' ? prefs.hideShared || [] : [];
+  return [...new Set(db.categories.flatMap(c => (c.shared && !off.includes(c.id) ? c.shared.emails : [])))]
+    .sort((a, b) => (b === window.me?.email) - (a === window.me?.email) || memberName(a).localeCompare(memberName(b), 'ko'));
+};
 const whoFilter = () => (people().includes(prefs.who) ? prefs.who : null);
 const assigned = () => {
   const w = whoFilter(), me = w === window.me?.email;
@@ -1322,7 +1328,7 @@ function renderSharedPick() {
     return b;
   }));
 }
-// 담당자별 보기: 공유 캘린더에 나 말고 멤버가 있을 때만 (달력·보드·목록 모두)
+// 담당자별 보기: 고를 사람이 나 말고 있을 때만 (달력 개인 보기엔 없음)
 function renderWhoPick() {
   const ps = people(), sel = $('whoSelect');
   sel.hidden = ps.length < 2;
