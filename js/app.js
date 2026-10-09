@@ -157,7 +157,7 @@ const memberName = e => {
 const whoText = it => whoOf(it).map(memberName).join('·');
 // 담당자별 보기 (prefs.who = 이메일, 기기별): 공유 캘린더 멤버 (나 먼저). 고른 사람이 목록에 없으면 모두
 // 달력 '개인' 보기에선 안 씀, '공유' 보기에선 켜 둔 공유 캘린더 멤버만 (보드·목록은 공유 캘린더 전부)
-// '나'는 공유 캘린더의 담당 없는 일정(모두 일정)도 같이 → 남이 맡은 것만 빠짐 (개인 일정은 '개인' 보기에서)
+// '나'는 담당 없는 일정(개인 일정, 공유 캘린더의 모두 일정)도 같이 → 남이 맡은 것만 빠짐 ('공유' 보기면 개인 일정은 원래 안 나옴)
 const people = () => {
   const cal = (prefs.view || 'calendar') === 'calendar';
   if (cal && scope() === 'mine') return [];
@@ -168,7 +168,7 @@ const people = () => {
 const whoFilter = () => (people().includes(prefs.who) ? prefs.who : null);
 const assigned = () => {
   const w = whoFilter(), me = w === window.me?.email;
-  return w ? live().filter(it => whoOf(it).includes(w) || (me && isSharedCat(it.cat) && !whoOf(it).length)) : live();
+  return w ? live().filter(it => whoOf(it).includes(w) || (me && !whoOf(it).length)) : live();
 };
 // 추가 카테고리: db.also = { 일정 id: [카테고리 id] } — 내 계정에만 저장 (공유 일정에 붙여도 다른 멤버에겐 안 보임).
 // 색·공유 여부는 대표 카테고리(it.cat)가 정하고, 추가는 내 카테고리만 (보기·탭에 같이 나오기만 함)
