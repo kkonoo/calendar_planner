@@ -145,6 +145,21 @@ const catColor = id => (db.categories.find(c => c.id === id) || {}).color || nul
 const isSharedCat = id => !!(db.categories.find(c => c.id === id) || {}).shared;
 // 공유 캘린더 일정이면 넣은 사람 이름 (내가 넣은 건 '')
 const byName = it => (it.by && it.by.uid !== window.me?.uid && isSharedCat(it.cat) ? it.by.name : '');
+// 담당자: 공유 캘린더 일정에 멤버(구글 이메일)를 지정 (it.who = [이메일], 여럿 가능). 공유 캘린더 밖으로 옮긴 일정은 담당 없음
+const membersOf = id => ((db.categories.find(c => c.id === id) || {}).shared || {}).emails || [];
+const whoOf = it => (isSharedCat(it.cat) ? it.who || [] : []);
+// 이름: 나 / 그 사람이 로그인할 때 공유 캘린더에 남긴 구글 이름 / 이메일 앞부분
+const memberName = e => {
+  if (e === window.me?.email) return '나';
+  const c = db.categories.find(x => x.shared?.names?.[e]);
+  return c ? c.shared.names[e] : e.split('@')[0];
+};
+const whoText = it => whoOf(it).map(memberName).join('·');
+// 담당자별 보기 (prefs.who = 이메일, 기기별): 공유 캘린더 멤버 전부 (나 먼저). 고른 사람이 멤버가 아니게 되면 모두
+const people = () => [...new Set(db.categories.flatMap(c => (c.shared ? c.shared.emails : [])))]
+  .sort((a, b) => (b === window.me?.email) - (a === window.me?.email) || memberName(a).localeCompare(memberName(b), 'ko'));
+const whoFilter = () => (people().includes(prefs.who) ? prefs.who : null);
+const assigned = () => { const w = whoFilter(); return w ? live().filter(it => whoOf(it).includes(w)) : live(); };
 // 추가 카테고리: db.also = { 일정 id: [카테고리 id] } — 내 계정에만 저장 (공유 일정에 붙여도 다른 멤버에겐 안 보임).
 // 색·공유 여부는 대표 카테고리(it.cat)가 정하고, 추가는 내 카테고리만 (보기·탭에 같이 나오기만 함)
 const alsoOf = it => ((db.also || {})[it.id] || []).filter(id => id !== it.cat && db.categories.some(c => c.id === id && !c.shared));
@@ -153,8 +168,8 @@ const alsoOf = it => ((db.also || {})[it.id] || []).filter(id => id !== it.cat &
 const scope = () => (db.categories.some(c => c.shared) && prefs.scope) || 'all';
 const shown = () => {
   const s = scope(), off = prefs.hideShared || [];
-  if (s === 'all') return live();
-  return live().filter(it => (s === 'shared' ? isSharedCat(it.cat) && !off.includes(it.cat) : !isSharedCat(it.cat) || alsoOf(it).length > 0));
+  if (s === 'all') return assigned();
+  return assigned().filter(it => (s === 'shared' ? isSharedCat(it.cat) && !off.includes(it.cat) : !isSharedCat(it.cat) || alsoOf(it).length > 0));
 };
 // 달력 화면의 색: 개인 보기에선 공유 일정도 내가 추가한 (첫) 카테고리 색, 전체·공유 보기는 대표(공유 캘린더) 색
 const viewCat = it => (scope() === 'mine' && isSharedCat(it.cat) && alsoOf(it)[0]) || it.cat;
@@ -175,7 +190,7 @@ function detach(series, s) {
   touch(series);
   const copy = newItem({
     title: series.title, date: s, time: series.time, endTime: series.endTime || null, cat: series.cat, place: series.place || '', note: series.note,
-    done: series.doneDates.includes(s), seriesId: series.id,
+    done: series.doneDates.includes(s), seriesId: series.id, ...(series.who ? { who: series.who.slice() } : {}),
   });
   db.items.push(copy);
   if ((db.also || {})[series.id]) db.also = { ...db.also, [copy.id]: db.also[series.id].slice() };
@@ -248,6 +263,7 @@ function render() {
   $('scopeSeg').hidden = v !== 'calendar' || !db.categories.some(c => c.shared);
   document.querySelectorAll('#scopeSeg [data-show]').forEach(b => b.classList.toggle('on', b.dataset.show === scope()));
   renderSharedPick();
+  renderWhoPick();
   if (v === 'board') return renderBoard();
   if (v === 'table') return renderTable();
   $('monthTitle').textContent = `${view.y}년 ${view.m}월`;
@@ -444,6 +460,7 @@ function itemRow(it, s, extra) {
   const p = clProgress(it);
   if (p) li.append(h('span', 'meta', `☑ ${p}`));
   if (byName(it)) li.append(h('span', 'meta', `👤 ${byName(it)}`));
+  if (whoText(it)) li.append(h('span', 'meta', `담당 ${whoText(it)}`));
   if (extra) li.append(extra);
   li.addEventListener('click', () => openEditor(it, s));
   return li;
@@ -574,7 +591,7 @@ $('todoAdd').addEventListener('submit', e => {
 
 // ---------- 편집 창 ----------
 const editor = $('editor'), form = $('editForm');
-let editing = null, editingDate = null, editCat = null, editAlso = [], editBucket = null, editDays = [], editScope = 'all', editChecklist = [];
+let editing = null, editingDate = null, editCat = null, editAlso = [], editWho = [], editBucket = null, editDays = [], editScope = 'all', editChecklist = [];
 // 이미 저장된 반복 일정을 특정 날짜에서 연 경우 → '이 날만 / 모든 반복' 선택
 const isSeriesEdit = () => !!(editing.repeat && editingDate && db.items.includes(editing));
 // 저장된 반복 → 편집 창 '반복' 선택값 (분기·반기 = 3·6개월마다 같은 날짜)
@@ -593,6 +610,7 @@ function openEditor(it, s, presetDate) {
   editingDate = s;
   editCat = it.cat;
   editAlso = alsoOf(it);
+  editWho = (it.who || []).slice();
   editBucket = it.bucket || null;
   const r = it.repeat;
   form.title.value = it.title;
@@ -640,6 +658,20 @@ function syncEditor() {
     b.style.setProperty('--c', tone(c.color));
     b.addEventListener('click', () => {
       editAlso = editAlso.includes(c.id) ? editAlso.filter(x => x !== c.id) : [...editAlso, c.id];
+      syncEditor();
+    });
+    return b;
+  }));
+  // 담당: 공유 캘린더 일정이면 멤버 중에서 (여럿 가능, 멤버가 나뿐이면 숨김)
+  const members = membersOf(editCat);
+  $('whoRow').hidden = members.length < 2;
+  $('editWho').replaceChildren(...members.map(e => {
+    const b = h('button', 'cat-pill' + (editWho.includes(e) ? ' on' : ''), memberName(e));
+    b.type = 'button';
+    b.title = e;
+    b.style.setProperty('--c', tone(catColor(editCat)));
+    b.addEventListener('click', () => {
+      editWho = editWho.includes(e) ? editWho.filter(x => x !== e) : [...editWho, e];
       syncEditor();
     });
     return b;
@@ -831,6 +863,8 @@ form.addEventListener('submit', e => {
   it.endTime = time && endTime ? endTime : null;
   it.cat = editCat;
   it.bucket = editBuckets().some(b => b.id === editBucket) ? editBucket : null;
+  const who = membersOf(it.cat).filter(e => editWho.includes(e)); // 멤버 순서로
+  if (who.length) it.who = who; else delete it.who;
   it.dday = form.dday.checked;
   it.place = form.place.value.trim();
   it.note = form.note.value;
@@ -1271,6 +1305,20 @@ function renderSharedPick() {
     return b;
   }));
 }
+// 담당자별 보기: 공유 캘린더에 나 말고 멤버가 있을 때만 (달력·보드·목록 모두)
+function renderWhoPick() {
+  const ps = people(), sel = $('whoSelect');
+  sel.hidden = ps.length < 2;
+  document.querySelector('.task-table').classList.toggle('no-who', sel.hidden); // 목록의 담당 칸도 같이
+  if (sel.hidden) return;
+  sel.replaceChildren(...[['', '모두'], ...ps.map(e => [e, memberName(e)])].map(([v, name]) => {
+    const o = h('option', '', `담당: ${name}`);
+    o.value = v;
+    return o;
+  }));
+  sel.value = whoFilter() || '';
+}
+$('whoSelect').addEventListener('change', e => { prefs.who = e.target.value || null; savePrefs(); render(); });
 document.querySelectorAll('#scopeSeg [data-show]').forEach(b => b.addEventListener('click', () => {
   prefs.scope = b.dataset.show;
   savePrefs();

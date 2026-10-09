@@ -30,6 +30,7 @@
       <button type="button" data-show="shared">공유</button>
     </div>
     <div class="cat-pick" id="sharedPick" hidden></div>
+    <select id="whoSelect" title="담당자별로 보기" hidden></select>
     <div class="search">
       <input type="search" id="searchInput" placeholder="검색 (Ctrl+K)" autocomplete="off">
       <div class="search-results" id="searchResults" hidden></div>
@@ -104,7 +105,7 @@
     </div>
     <div class="table-wrap">
       <table class="task-table">
-        <thead><tr><th></th><th>작업 이름</th><th>카테고리</th><th>그룹</th><th>날짜</th><th>체크리스트</th><th>메모</th></tr></thead>
+        <thead><tr><th></th><th>작업 이름</th><th>카테고리</th><th>그룹</th><th>날짜</th><th class="t-who">담당</th><th>체크리스트</th><th>메모</th></tr></thead>
         <tbody id="taskRows"></tbody>
       </table>
       <form id="tableAdd"><input class="add-input" id="tableInput" placeholder="+ 새 작업 추가" autocomplete="off"></form>
@@ -152,6 +153,7 @@
     </div>
     <div class="row"><label>카테고리</label><div class="cat-pick" id="editCats"></div></div>
     <div class="row" id="alsoRow" title="대표 카테고리 말고 여기에도 같이 보여요 (색은 대표 카테고리)"><label>추가</label><div class="cat-pick" id="editAlso"></div><span class="hint" id="alsoHint"></span></div>
+    <div class="row" id="whoRow" title="공유 캘린더 멤버 중 이 일을 맡은 사람 (여럿 가능)"><label>담당</label><div class="cat-pick" id="editWho"></div></div>
     <div class="row" id="bucketRow"><label>그룹</label><select name="bucket"></select></div>
     <div class="row" id="freqRow">
       <label>반복</label>

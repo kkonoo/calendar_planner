@@ -4,7 +4,7 @@
 // 시간 있는 일정은 달력에서만.
 // 그룹은 category.buckets = [{ id, name }], 할 일의 그룹은 item.bucket, 열 안의 순서는 item.order
 const isTask = it => !it.time;
-const tasks = () => live().filter(isTask);
+const tasks = () => assigned().filter(isTask); // 담당자별 보기도 같이 (app.js)
 
 let nextCache = new Map(); // 그릴 때마다 비움
 function nextOpen(it) {
@@ -181,6 +181,7 @@ function card(it, showGroup, ctx, locked) {
   const p = clProgress(it);
   if (p) meta.append(h('span', '', `☑ ${p}`));
   if (byName(it)) meta.append(h('span', '', `👤 ${byName(it)}`));
+  if (whoText(it)) meta.append(h('span', '', `담당 ${whoText(it)}`));
   if (meta.childElementCount) e.append(meta);
   e.addEventListener('click', () => openEditor(it, taskDate(it)));
   if (!locked) draggable(e, it, it.date);
@@ -415,12 +416,12 @@ function renderTable() {
       if (isSpan(it)) tdDate.append(h('span', 't-rep', `~ ${fmtShort(it.endDate)}`));
     }
 
-    tr.append(tdCheck, h('td', 't-title', it.title), tdCat, tdGroup, tdDate,
+    tr.append(tdCheck, h('td', 't-title', it.title), tdCat, tdGroup, tdDate, h('td', 't-who', whoText(it)),
       h('td', 't-cl', clProgress(it) ? `☑ ${clProgress(it)}` : ''),
       h('td', 't-note', (it.note || '').split('\n')[0]));
     tr.addEventListener('click', () => openEditor(it, taskDate(it)));
     return tr;
-  }) : [(() => { const tr = h('tr', 'empty'), td = h('td', '', '할 일이 없어요'); td.colSpan = 7; tr.append(td); return tr; })()]));
+  }) : [(() => { const tr = h('tr', 'empty'), td = h('td', '', '할 일이 없어요'); td.colSpan = 8; tr.append(td); return tr; })()]));
 }
 $('tableDoneChk').addEventListener('change', e => { prefs.tableDone = e.target.checked; savePrefs(); renderTable(); });
 $('tableAdd').addEventListener('submit', e => {

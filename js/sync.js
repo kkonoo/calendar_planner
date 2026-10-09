@@ -1,8 +1,9 @@
 // 구글 계정 로그인 + 기기 간 동기화 (Firebase Auth + Firestore).
 // firebase-config.js 가 비어 있으면 아무것도 하지 않음 → 이 브라우저에만 저장.
 // 저장 위치: users/{uid}/items/{일정 id}, users/{uid}/meta/categories (카테고리), users/{uid}/meta/days (날짜 칠하기), users/{uid}/meta/also (추가 카테고리)
-// 공유 캘린더: shared/{캘린더 id} = { name, color, buckets, owner, ownerEmail, emails }, 일정은 shared/{캘린더 id}/items/{일정 id}
-//   emails 에 든 구글 계정만 읽고 씀 (firestore.rules). 앱에서는 카테고리 하나로 보임 (category.shared = { owner, ownerEmail, emails })
+// 공유 캘린더: shared/{캘린더 id} = { name, color, buckets, owner, ownerEmail, emails, names }, 일정은 shared/{캘린더 id}/items/{일정 id}
+//   emails 에 든 구글 계정만 읽고 씀 (firestore.rules). 앱에서는 카테고리 하나로 보임 (category.shared = { owner, ownerEmail, emails, names })
+//   names = { 이메일: 구글 이름 } — 멤버마다 로그인할 때 자기 이름을 남김 (담당자 이름 표시용)
 // app.js 의 db, save, persist, render 등을 그대로 사용.
 import { firebaseConfig } from './firebase-config.js';
 
@@ -25,7 +26,7 @@ async function start() {
     days: { get: () => db.dayColors || {}, set: v => { db.dayColors = v; } },
     also: { get: () => db.also || {}, set: v => { db.also = v; } }, // 추가 카테고리 (공유 일정에 붙인 것도 내 계정에만)
   };
-  let uid = null, email = '', unsub = [], calUnsub = {}, synced = {}, home = {}, metaJSON = {}, calJSON = {}, ready = {}, loaded = {};
+  let uid = null, email = '', unsub = [], calUnsub = {}, synced = {}, home = {}, metaJSON = {}, calJSON = {}, ready = {}, loaded = {}, named = new Set();
   // 이 기기가 서버와 어디까지 맞췄는지. db 안에 같이 저장 → 로그아웃·계정 변경으로 db가 바뀌면 같이 없어짐
   // cols: '' (내 일정) 또는 공유 캘린더 id → { since: 서버에서 받은 마지막 변경 시각(syncedAt, 서버 시계) } / full: 마지막으로 전부 받은 때
   // synced: 일정 id → 서버에 있는 updatedAt / home: 일정 id → 서버에서 있는 곳 ('' 또는 공유 캘린더 id)
@@ -57,10 +58,10 @@ async function start() {
   }
 
   // ---------- 올리기: 마지막으로 맞춘 뒤 바뀐 것만 ----------
-  // 공유 캘린더 정보 (멤버가 바꿀 수 있는 것 + 만든 사람)
+  // 공유 캘린더 정보 (멤버가 바꿀 수 있는 것 + 만든 사람 + 멤버 이름 — 이름은 받기만 하고 올리기는 아래 subscribe 에서 내 것만)
   const calMeta = c => JSON.stringify({
     name: c.name, color: c.color, buckets: c.buckets || [],
-    owner: c.shared.owner, ownerEmail: c.shared.ownerEmail, emails: c.shared.emails,
+    owner: c.shared.owner, ownerEmail: c.shared.ownerEmail, emails: c.shared.emails, names: c.shared.names || {},
   });
   function push() {
     if (!uid || !allReady()) return;
@@ -156,7 +157,7 @@ async function start() {
 
   // 공유 캘린더 정보를 서버 값으로 (없으면 카테고리 맨 뒤에 추가)
   function upsertCal(id, d) {
-    const fresh = { id, name: d.name, color: d.color, buckets: d.buckets || [], shared: { owner: d.owner, ownerEmail: d.ownerEmail, emails: d.emails } };
+    const fresh = { id, name: d.name, color: d.color, buckets: d.buckets || [], shared: { owner: d.owner, ownerEmail: d.ownerEmail, emails: d.emails, names: d.names || {} } };
     const json = calMeta(fresh), c = db.categories.find(x => x.id === id);
     calJSON[id] = json;
     if (c && calMeta(c) === json) return false;
@@ -201,6 +202,12 @@ async function start() {
       let changed = false;
       for (const d of snap.docs) changed = upsertCal(d.id, d.data()) || changed;
       if (changed) { persist(); render(); }
+      // 내 이름을 남겨 둠 (다른 멤버 화면의 담당자 이름). 실패해도 다시 시도하지 않게 캘린더마다 한 번만
+      for (const d of snap.docs) {
+        if (snap.metadata.fromCache || named.has(d.id) || (d.data().names || {})[email] === window.me.name) continue;
+        named.add(d.id);
+        F.setDoc(d.ref, { names: { [email]: window.me.name } }, { merge: true }).catch(e => console.error('동기화 실패', e));
+      }
       if (!snap.metadata.fromCache) {
         const ids = snap.docs.map(d => d.id);
         sharedCats().filter(c => !ids.includes(c.id)).forEach(c => dropCal(c.id));
@@ -256,7 +263,7 @@ async function start() {
   A.onAuthStateChanged(auth, user => {
     unsub.forEach(f => f());
     Object.values(calUnsub).forEach(f => f());
-    unsub = []; calUnsub = {}; synced = {}; home = {}; metaJSON = {}; calJSON = {}; ready = {}; loaded = {};
+    unsub = []; calUnsub = {}; synced = {}; home = {}; metaJSON = {}; calJSON = {}; ready = {}; loaded = {}; named = new Set();
     uid = user ? user.uid : null;
     email = user ? (user.email || '').toLowerCase() : '';
     window.me = user ? { uid, email, name: user.displayName || email.split('@')[0] } : null;
