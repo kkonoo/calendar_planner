@@ -156,10 +156,14 @@ const memberName = e => {
 };
 const whoText = it => whoOf(it).map(memberName).join('·');
 // 담당자별 보기 (prefs.who = 이메일, 기기별): 공유 캘린더 멤버 전부 (나 먼저). 고른 사람이 멤버가 아니게 되면 모두
+// '나'는 담당 없는 일정(공유 캘린더의 모두 일정·개인 일정)도 같이 → 남이 맡은 것만 빠짐
 const people = () => [...new Set(db.categories.flatMap(c => (c.shared ? c.shared.emails : [])))]
   .sort((a, b) => (b === window.me?.email) - (a === window.me?.email) || memberName(a).localeCompare(memberName(b), 'ko'));
 const whoFilter = () => (people().includes(prefs.who) ? prefs.who : null);
-const assigned = () => { const w = whoFilter(); return w ? live().filter(it => whoOf(it).includes(w)) : live(); };
+const assigned = () => {
+  const w = whoFilter(), me = w === window.me?.email;
+  return w ? live().filter(it => whoOf(it).includes(w) || (me && !whoOf(it).length)) : live();
+};
 // 추가 카테고리: db.also = { 일정 id: [카테고리 id] } — 내 계정에만 저장 (공유 일정에 붙여도 다른 멤버에겐 안 보임).
 // 색·공유 여부는 대표 카테고리(it.cat)가 정하고, 추가는 내 카테고리만 (보기·탭에 같이 나오기만 함)
 const alsoOf = it => ((db.also || {})[it.id] || []).filter(id => id !== it.cat && db.categories.some(c => c.id === id && !c.shared));
