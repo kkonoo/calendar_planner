@@ -862,6 +862,7 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
   .panel { flex-basis: auto !important; }
   .search { order: 10; flex: 1 1 160px; } /* 윗줄이 차서 한 줄을 다 쓰고, 개인·공유 버튼이 있으면 그 옆에 */
   #scopeSeg, #sharedPick, #whoSelect { order: 9; }
+  #viewSeg { margin-right: auto; } /* 계정·테마·설정은 같은 줄 오른쪽 끝으로 */
   #searchInput { width: 100%; }
   .search-results { width: min(calc(100vw - 24px), 480px); } /* 검색칸이 좁아도 (옆에 개인·공유 버튼) 결과는 줄 전체 너비로 */
   #settings { margin: auto; }
