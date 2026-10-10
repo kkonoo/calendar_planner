@@ -854,7 +854,7 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
 
 @media (max-width: 900px) {
   body { height: auto; min-height: 100vh; }
-  /* 상단 (일상노트처럼): 1줄 달력·보드·목록 + 오른쪽 끝 계정·테마·설정 → 2줄 날짜(보드·목록은 '할 일' + 오른쪽 끝 담당) → 개인·공유·담당(달력) → 검색 */
+  /* 상단 (일상노트처럼): 1줄 달력·보드·목록 + 오른쪽 끝 계정·테마·설정 → 2줄 날짜(보드·목록은 '할 일' + 바로 옆 담당) → 개인·공유·담당(달력) → 검색 */
   .topbar { justify-content: flex-start; gap: 10px 6px; padding: 12px 12px 10px; }
   .tools { display: contents; } /* 안의 버튼들을 날짜 줄과 같은 줄 단위로 배치 */
   .view-title, .nav { order: 1; flex-basis: 100%; }
@@ -865,8 +865,11 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
   .search { order: 10; flex: 1 1 160px; } /* 윗줄이 차서 한 줄을 다 쓰고, 개인·공유 버튼이 있으면 그 옆에 */
   #scopeSeg, #sharedPick, #whoSelect { order: 9; }
   #viewSeg { order: -2; }
-  body:not([data-view="calendar"]) #whoSelect { order: 1; } /* 보드·목록: 담당은 '할 일' 줄 오른쪽 끝 (첫 줄은 달력·보드·목록 + 계정·테마·설정만) */
-  body:not([data-view="calendar"]) .view-title { flex: 1 1 calc(100% - 160px); } /* 담당 칸 자리(160px)만 남겨서 첫 줄로 안 올라가고 담당과 한 줄 */
+  /* 보드·목록: 담당은 '할 일' 바로 옆 (첫 줄은 달력·보드·목록 + 계정·테마·설정만) — 보이지 않는 ::before 가 첫 줄을 끊음 */
+  body:not([data-view="calendar"]) .topbar::before { content: ""; order: 1; flex-basis: 100%; }
+  body:not([data-view="calendar"]) :is(.view-title, #whoSelect) { order: 2; margin-top: -10px; } /* 빈 줄 때문에 한 번 더 생기는 줄 간격(10px)만큼 위로 */
+  body:not([data-view="calendar"]) .view-title { flex-basis: auto; }
+  body:not([data-view="calendar"]) .search { flex-basis: 100%; } /* 검색은 그 아래 한 줄 */
   #accountBtn, #accountBtn[hidden] + #themeBtn { margin-left: auto; } /* 계정·테마·설정은 같은 줄 오른쪽 끝으로 */
   .topbar .seg button { padding-inline: 10px; } /* 첫 줄에 계정·테마·설정까지 들어가게 조금씩 좁게 */
   #whoSelect { padding-inline: 4px; }
