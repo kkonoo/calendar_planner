@@ -854,15 +854,22 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
 
 @media (max-width: 900px) {
   body { height: auto; min-height: 100vh; }
-  .topbar { padding: 12px 12px 10px; }
+  /* 상단 (일상노트처럼): 1줄 달력·보드·목록 + 오른쪽 끝 계정·테마·설정 → 2줄 날짜(보드·목록은 '할 일') → 개인·공유·담당 → 검색 */
+  .topbar { justify-content: flex-start; gap: 10px 6px; padding: 12px 12px 10px; }
+  .tools { display: contents; } /* 안의 버튼들을 날짜 줄과 같은 줄 단위로 배치 */
+  .view-title, .nav { order: 1; flex-basis: 100%; }
   .month-title { font-size: 19px; min-width: 110px; }
-  .tools { flex-wrap: wrap; }
   .splitter { display: none; } /* 폰에서는 위아래로 쌓으니 크기 조절 없음 */
   .side { gap: 12px; }
   .panel { flex-basis: auto !important; }
   .search { order: 10; flex: 1 1 160px; } /* 윗줄이 차서 한 줄을 다 쓰고, 개인·공유 버튼이 있으면 그 옆에 */
   #scopeSeg, #sharedPick, #whoSelect { order: 9; }
-  #viewSeg { margin-right: auto; } /* 계정·테마·설정은 같은 줄 오른쪽 끝으로 */
+  #viewSeg { order: -2; }
+  body:not([data-view="calendar"]) #whoSelect { order: -1; } /* 보드·목록: 담당은 달력·보드·목록 바로 옆 */
+  #accountBtn, #accountBtn[hidden] + #themeBtn { margin-left: auto; } /* 계정·테마·설정은 같은 줄 오른쪽 끝으로 */
+  .topbar .seg button { padding-inline: 10px; } /* 보드·목록 1줄에 담당까지 들어가게 조금씩 좁게 */
+  #whoSelect { padding-inline: 4px; }
+  #settingsBtn { padding-inline: 12px; }
   #searchInput { width: 100%; }
   .search-results { width: min(calc(100vw - 24px), 480px); } /* 검색칸이 좁아도 (옆에 개인·공유 버튼) 결과는 줄 전체 너비로 */
   #settings { margin: auto; }
