@@ -13,6 +13,12 @@ const SDK = 'https://www.gstatic.com/firebasejs/12.19.0';
 if (firebaseConfig) start();
 
 async function start() {
+  // Firebase를 받고 로그인을 확인하기까지 (폰은 몇 초) 이 기기에서 마지막으로 로그인한 계정으로 보여줌 (prefs.me, 확인되면 아래에서 바꿈)
+  // → 그사이에도 계정 버튼이 '로그인'이 아니고, 담당자·넣은 사람에서 내가 '나'로
+  if (prefs.me) {
+    window.me = prefs.me;
+    Object.assign($('accountBtn'), { hidden: false, className: 'avatar', textContent: prefs.me.name.slice(0, 1), title: prefs.me.email });
+  }
   const [{ initializeApp }, A, F] = await Promise.all([
     import(`${SDK}/firebase-app.js`), import(`${SDK}/firebase-auth.js`), import(`${SDK}/firebase-firestore.js`),
   ]);
@@ -268,8 +274,10 @@ async function start() {
     uid = user ? user.uid : null;
     email = user ? (user.email || '').toLowerCase() : '';
     window.me = user ? { uid, email, name: user.displayName || email.split('@')[0] } : null;
+    if (window.me) prefs.me = window.me; else delete prefs.me;
+    savePrefs();
     showAccount(user);
-    render(); // 로그인 전에 그린 화면은 내 이메일을 '나'로 몰라서 (담당자에 공유 멤버 목록의 내 이름이 나오고, 담당: 나 가 남처럼 걸러짐)
+    render(); // 로그인 확인 전에 그린 화면은 내 이메일을 '나'로 몰랐을 수 있어서 (담당자에 공유 멤버 목록의 내 이름이 나오고, 담당: 나 가 남처럼 걸러짐)
 
     if (!user) {
       // 로그아웃: 이 기기에 남은 계정 데이터는 지움 (계정에는 그대로 있음)
