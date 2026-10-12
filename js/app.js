@@ -1400,3 +1400,9 @@ $('installYes').addEventListener('click', async () => {
   if ((await installPrompt.userChoice).outcome === 'dismissed') noInstall();
 });
 addEventListener('appinstalled', () => { $('installBar').hidden = true; });
+// 아이폰: 브라우저가 설치 창을 못 띄워서 공유 메뉴로 설치하는 방법만 안내 (홈 화면 앱으로 열었으면 standalone)
+if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone && !prefs.noInstall) {
+  $('installMsg').textContent = '공유 메뉴에서 ‘홈 화면에 추가’를 누르면 앱으로 설치돼요';
+  $('installYes').hidden = true;
+  $('installBar').hidden = false;
+}
