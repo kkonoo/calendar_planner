@@ -1383,3 +1383,20 @@ addEventListener('DOMContentLoaded', () => dbReady.then(render)); // views.js �
 
 // 앱 설치(PWA)·오프라인용. 파일을 더블클릭해서 연 경우(file://)엔 동작 안 함
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js');
+
+// 폰 크롬·엣지: 설치할 수 있으면(아직 안 했으면) 아래에 설치 안내. 닫거나 설치 창에서 취소하면 이 기기에선 다시 안 띄움
+let installPrompt = null;
+addEventListener('beforeinstallprompt', e => {
+  if (!matchMedia('(max-width: 900px)').matches) return; // PC는 주소창의 설치 버튼으로
+  e.preventDefault(); // 브라우저가 따로 띄우는 안내 대신 (닫은 뒤에도 그게 뜨지 않게)
+  installPrompt = e;
+  if (!prefs.noInstall) $('installBar').hidden = false;
+});
+const noInstall = () => { $('installBar').hidden = true; prefs.noInstall = true; savePrefs(); };
+$('installNo').addEventListener('click', noInstall);
+$('installYes').addEventListener('click', async () => {
+  $('installBar').hidden = true;
+  installPrompt.prompt();
+  if ((await installPrompt.userChoice).outcome === 'dismissed') noInstall();
+});
+addEventListener('appinstalled', () => { $('installBar').hidden = true; });
