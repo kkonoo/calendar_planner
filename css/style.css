@@ -4,7 +4,7 @@
   --surface-2: #F9F8F6;
   --line: #E8E6E0;
   --text: #1E1F22;
-  --muted: #8A8882;
+  --muted: #6E6C66; /* 설명 글씨: 흰 칸·바탕 어디서든 대비 4.5:1 넘게 (예전 #8A8882는 3.2:1) — 랩 매니저와 같은 값 */
   --faint: #B8B5AD;
   --accent: #3D63DD;
   --accent-soft: #E9EEFF;
