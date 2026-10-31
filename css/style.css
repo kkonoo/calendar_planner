@@ -8,8 +8,9 @@
   --text: #262626;
   --muted: #666666; /* 설명 글씨: 흰 칸·바탕 어디서든 대비 4.5:1 넘게 */
   --faint: #9AA0A8;
-  --accent: #0F4C6E; /* 틸 (슬라이드 갤러리 기본색) */
-  --accent-soft: #E7EEF2;
+  --accent: #2F343B; /* 차콜 (슬라이드 갤러리 회색 테마) — 무채색 */
+  --accent-soft: #E8EAED;
+  --on-accent: #FFFFFF; /* 주조색 위 글씨 */
   --hot: #C2531F; /* 연속 기록 (루틴) */
   --sun: #C93A3A;
   --sat: #2F6DB5;
@@ -29,7 +30,7 @@
   :root:not([data-theme="light"]) {
     --bg: #121214; --surface: #1B1B1E; --surface-2: #222226; --well: #26262B; --line: #2C2C31;
     --text: #ECECEE; --muted: #8E8E95; --faint: #5C5C63;
-    --accent: #4A93BA; --accent-soft: #1B2F3A; --hot: #F08A5D; --sun: #FF6B6F; --sat: #6FA0FF;
+    --accent: #C9CDD3; --accent-soft: #2A2D33; --on-accent: #16171A; --hot: #F08A5D; --sun: #FF6B6F; --sat: #6FA0FF;
     --shadow: none; color-scheme: only dark;
     --lift: 35%; --tint: 30%; --fill: 50%;
   }
@@ -37,7 +38,7 @@
 :root[data-theme="dark"] {
   --bg: #121214; --surface: #1B1B1E; --surface-2: #222226; --well: #26262B; --line: #2C2C31;
   --text: #ECECEE; --muted: #8E8E95; --faint: #5C5C63;
-  --accent: #4A93BA; --accent-soft: #1B2F3A; --hot: #F08A5D; --sun: #FF6B6F; --sat: #6FA0FF;
+  --accent: #C9CDD3; --accent-soft: #2A2D33; --on-accent: #16171A; --hot: #F08A5D; --sun: #FF6B6F; --sat: #6FA0FF;
   --shadow: none; color-scheme: only dark;
   --lift: 35%; --tint: 30%; --fill: 50%;
 }
@@ -183,7 +184,7 @@ body[data-view="routine"] .routine-view { display: flex; }
 }
 .mp-grid button:hover { background: var(--surface-2); }
 .mp-grid button.now { color: var(--accent); font-weight: 700; }
-.mp-grid button.on { background: var(--accent); color: #fff; }
+.mp-grid button.on { background: var(--accent); color: var(--on-accent); }
 .nav .btn { margin-left: 8px; color: var(--accent); font-weight: 600; } /* 오늘 */
 
 .btn {
@@ -197,7 +198,7 @@ body[data-view="routine"] .routine-view { display: flex; }
   white-space: nowrap;
 }
 .btn:hover { background: var(--surface-2); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.danger { background: transparent; border-color: transparent; color: var(--sun); padding-inline: 8px; }
 .btn.danger:hover { background: color-mix(in srgb, var(--sun) 10%, transparent); }
@@ -305,7 +306,7 @@ body[data-view="routine"] .routine-view { display: flex; }
 }
 .cell.sun .num { color: var(--sun); }
 .cell.sat .num { color: var(--sat); }
-.cell.today .num { background: var(--accent); color: #fff; }
+.cell.today .num { background: var(--accent); color: var(--on-accent); }
 .hol { font-size: 11px; color: var(--sun); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 일정 = 색 배경 + 동그라미, 할 일 = 배경 없음 + 네모, 여러 날 = 이어진 막대 */
@@ -440,7 +441,7 @@ body[data-view="routine"] .routine-view { display: flex; }
   border: none;
   border-radius: 50%;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 700;
   cursor: pointer;
 }
@@ -593,7 +594,7 @@ dialog h2 + .hint { margin-top: 0; }
   cursor: pointer;
 }
 .time-menu button:hover { background: var(--surface-2); }
-.time-menu button.on { background: var(--accent); color: #fff; }
+.time-menu button.on { background: var(--accent); color: var(--on-accent); }
 .time-menu button:first-child { color: var(--muted); }
 .row input[type="number"] { width: 60px; }
 .row input[name="place"], .row input[name="cue"] {
@@ -640,7 +641,7 @@ dialog h2 + .hint { margin-top: 0; }
   font-size: 13px;
   cursor: pointer;
 }
-.weekday-pick button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.weekday-pick button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 textarea {
   width: 100%;
@@ -857,7 +858,7 @@ span.col-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; 
 .ring span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: var(--surface); font-weight: 600; font-variant-numeric: tabular-nums; }
 .wday.sel .ring span { background: var(--accent-soft); }
 .wday.today .ring span { color: var(--accent); font-weight: 800; }
-.wday.full .ring span { background: var(--accent); color: #fff; }
+.wday.full .ring span { background: var(--accent); color: var(--on-accent); }
 .wday.future { opacity: .5; }
 .routine-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-items: start; gap: 14px; }
 .routine { --c: var(--faint); }
