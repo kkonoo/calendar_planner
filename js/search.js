@@ -58,7 +58,15 @@ function openHit(k) {
 
 searchInput.addEventListener('input', renderSearch);
 searchInput.addEventListener('focus', renderSearch);
-searchInput.addEventListener('blur', () => { searchBox.hidden = true; });
+searchInput.addEventListener('blur', () => {
+  searchBox.hidden = true;
+  if (!searchInput.value) document.body.classList.remove('searching'); // 폰: 빈 검색칸은 다시 접기
+});
+// 폰: 검색칸은 접어 두고 돋보기 버튼으로 펼침 (PC는 늘 보임)
+$('searchBtn').addEventListener('click', () => {
+  document.body.classList.add('searching');
+  searchInput.focus();
+});
 searchInput.addEventListener('keydown', e => {
   if (e.isComposing) return;
   if (e.key === 'Escape') { searchInput.value = ''; searchBox.hidden = true; searchInput.blur(); return; }

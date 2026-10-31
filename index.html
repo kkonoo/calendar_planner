@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/app-192.png">
 <link rel="apple-touch-icon" href="icons/app-maskable-192.png">
-<meta name="theme-color" id="themeColor" content="#F5F4F0">
+<meta name="theme-color" id="themeColor" content="#FFFFFF">
 <meta name="color-scheme" content="light dark">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="css/style.css">
@@ -39,15 +39,22 @@
       <input type="search" id="searchInput" placeholder="검색 (Ctrl+K)" autocomplete="off">
       <div class="search-results" id="searchResults" hidden></div>
     </div>
-    <div class="seg" id="viewSeg">
+    <button class="icon-btn" id="searchBtn" title="검색" aria-label="검색">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+    </button>
+    <nav class="tabs" id="viewSeg" aria-label="보기">
       <button type="button" data-view="calendar">달력</button>
       <button type="button" data-view="board">보드</button>
       <button type="button" data-view="table">목록</button>
       <button type="button" data-view="routine">루틴</button>
-    </div>
+    </nav>
     <button class="btn" id="accountBtn" hidden>로그인</button>
-    <button class="icon-btn" id="themeBtn" title="라이트/다크 전환">◐</button>
-    <button class="btn" id="settingsBtn">설정</button>
+    <button class="icon-btn" id="themeBtn" title="라이트/다크 전환" aria-label="라이트/다크 전환">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
+    </button>
+    <button class="icon-btn" id="settingsBtn" title="설정" aria-label="설정">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+    </button>
   </div>
 </header>
 
@@ -120,7 +127,7 @@
 
 <!-- 루틴: 위 한 주 + 루틴 카드 (routine.js) -->
 <main class="routine-view">
-  <section class="panel week-panel">
+  <section class="panel week-panel" id="weekPanel">
     <div class="panel-head">
       <button class="icon-btn small" id="routinePrev" aria-label="지난주">‹</button>
       <h2 id="routineDate"></h2>

@@ -280,7 +280,7 @@ function render() {
   if (v === 'board') return renderBoard();
   if (v === 'table') return renderTable();
   if (v === 'routine') return renderRoutine();
-  $('monthTitle').textContent = `${view.y}년 ${view.m}월`;
+  $('monthTitle').replaceChildren(`${view.m}월`, h('span', 'year', view.y)); // 달은 크게, 해는 옆에 작게
   renderGrid();
   renderDay();
   renderDday();
@@ -984,8 +984,8 @@ $('resetLayoutBtn').addEventListener('click', () => {
 function applyTheme() {
   if (prefs.theme) document.documentElement.dataset.theme = prefs.theme;
   else delete document.documentElement.dataset.theme;
-  // 폰 상단 상태바 색을 지금 배경색에 맞춤
-  $('themeColor').content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  // 폰 상단 상태바 색을 상단 바(흰 칸) 색에 맞춤
+  $('themeColor').content = getComputedStyle(document.documentElement).getPropertyValue('--surface').trim();
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
 function syncUIControls() {

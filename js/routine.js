@@ -10,8 +10,9 @@ const habitsIn = rid => habits().filter(it => it.routine === rid).sort(byOrder);
 const routineById = id => (db.routines || []).find(g => g.id === id);
 let routineDay = todayStr(); // 보고 있는 날 (기기별, 저장 안 함)
 let routineFocus = null; // 습관 추가 후 다시 커서 줄 루틴 id
+const FLAME = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 .3 2 1.3 3 2.5 3.5C11 9 11 6 12 3z"/></svg>';
 
-// 🔥 연속: 오늘부터 거꾸로, 해야 하는 날만 세다가 안 한 날에서 멈춤 (오늘 아직 안 한 건 끊긴 게 아님)
+// 연속: 오늘부터 거꾸로, 해야 하는 날만 세다가 안 한 날에서 멈춤 (오늘 아직 안 한 건 끊긴 게 아님)
 function streak(it) {
   const done = new Set(it.doneDates), today = toNum(todayStr());
   let n = 0;
@@ -64,14 +65,14 @@ function moveRoutine(id, target, before) {
 }
 
 // ---------- 그리기 ----------
-// 기록 / 통계 (prefs.routineTab, 기기별) — 위의 한 주는 둘 다
+// 기록 / 통계 (prefs.routineTab, 기기별). 위의 한 주 동그라미는 기록에만 (통계는 표 머리에서 주·달 넘기기)
 function renderRoutine() {
-  renderWeek();
   const stats = prefs.routineTab === 'stats';
   document.querySelectorAll('#routineSeg [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === (stats ? 'stats' : '')));
-  $('routineList').hidden = $('addRoutineBtn').hidden = stats;
+  $('weekPanel').hidden = $('routineList').hidden = $('addRoutineBtn').hidden = stats;
   $('routineStats').hidden = !stats;
   if (stats) return renderStats();
+  renderWeek();
   const groups = db.routines || [];
   // 루틴이 없어진 습관 (예: 다른 기기에서 루틴을 받기 전) → 안 보이게 두지 않고 '루틴 없음'에
   const loose = habits().filter(it => !routineById(it.routine)).sort(byOrder);
@@ -124,7 +125,7 @@ function routineCard(g, list) {
   }
   const due = list.filter(it => occursOn(it, s));
   const head = h('div', 'panel-head');
-  head.append(h('h2', '', g ? g.name : '루틴 없음'));
+  head.append(h('span', 'dot'), h('h2', '', g ? g.name : '루틴 없음'));
   if (g?.cue) head.append(h('span', 'hint', g.cue));
   head.append(h('span', 'count', due.length ? `${due.filter(it => it.doneDates.includes(s)).length}/${due.length}` : ''));
   const ul = h('ul', 'list');
@@ -182,7 +183,13 @@ function habitRow(it, s, g) {
   } else li.append(h('span', 'check')); // 쉬는 날·앞으로 올 날은 체크 못 함
   li.append(h('span', 'title', it.title));
   const n = streak(it);
-  if (n) li.append(h('span', 'meta', `🔥 ${n}`));
+  if (n) {
+    const e = h('span', 'streak');
+    e.innerHTML = FLAME;
+    e.append(n);
+    e.title = `${n}번 연속`;
+    li.append(e);
+  }
   if (!due) li.append(h('span', 'meta', s < it.date ? '시작 전' : '쉬는 날'));
   li.addEventListener('click', () => openHabit(it));
   if (g) {
@@ -218,19 +225,40 @@ function renderStats() {
   const paint = (e, g) => { if (g) e.style.setProperty('--c', tone(g.color)); };
   if (!rows.length) return $('routineStats').replaceChildren(h('p', 'hint', '기록 탭에서 루틴과 습관을 만들면 여기에 모아서 보여요.'));
 
+  const nav = (text, label, fn) => {
+    const b = h('button', 'icon-btn small', text);
+    b.setAttribute('aria-label', label);
+    b.addEventListener('click', fn);
+    return b;
+  };
+  // 한 주: 루틴 이름 줄 아래 습관마다 요일 칸 (쉬는 날은 작은 점)
   const week = h('section', 'panel'), weekHead = h('div', 'panel-head'), table = h('table', 'week-table'), headRow = h('tr');
-  weekHead.append(h('h2', '', '한 주'));
+  weekHead.append(h('h2', '', '한 주'), h('span', 'hint', `${fmtMD(toStr(start))} – ${fmtMD(toStr(start + 6))}`));
+  if (routineDay !== today) {
+    const back = h('button', 'btn small', '오늘');
+    back.addEventListener('click', () => { routineDay = today; renderRoutine(); });
+    weekHead.append(back);
+  }
+  weekHead.append(nav('‹', '지난주', () => shiftRoutineDay(-7)), nav('›', '다음 주', () => shiftRoutineDay(7)));
   week.append(weekHead, table);
   headRow.append(h('th'), ...WD.map(w => h('th', 'd', w)), h('th', 'n'));
   table.append(headRow);
+  let group; // 처음엔 undefined → 첫 루틴(또는 '루틴 없음' = null)에서 이름 줄
   for (const [it, g] of rows) {
+    if (g !== group) {
+      const gr = h('tr', 'wt-group'), td = h('td', '', g ? g.name : '루틴 없음');
+      td.colSpan = 9;
+      gr.append(td);
+      table.append(gr);
+      group = g;
+    }
     const tr = h('tr'), name = h('td', 'wt-title', it.title);
     paint(tr, g);
     name.title = it.title;
     tr.append(name);
     for (let k = 0; k < 7; k++) {
       const td = h('td', 'd');
-      td.append(h('span', `sq ${dayMark(it, toStr(start + k), today)}`));
+      td.append(h('span', `sq ${dayMark(it, toStr(start + k), today) || 'off'}`));
       tr.append(td);
     }
     const t = tally(it, start, start + 6, today);
@@ -238,25 +266,32 @@ function renderStats() {
     table.append(tr);
   }
 
+  // 한 달: 습관마다 작은 달력 + 달성률(크게)·횟수
   const [y, m] = ymd(routineDay), first = toNum(`${y}-${pad(m)}-01`), last = first + new Date(Date.UTC(y, m, 0)).getUTCDate() - 1;
   const month = h('section', 'panel'), head = h('div', 'panel-head'), cards = h('div', 'month-cards');
-  const nav = (text, d) => {
-    const b = h('button', 'icon-btn small', text);
-    b.setAttribute('aria-label', d < 0 ? '지난달' : '다음 달');
-    b.addEventListener('click', () => shiftRoutineMonth(d));
-    return b;
-  };
-  head.append(nav('‹', -1), h('h2', '', `${y}년 ${m}월`), nav('›', 1));
+  head.append(h('h2', '', '한 달'), h('span', 'hint', `${y}년 ${m}월`),
+    nav('‹', '지난달', () => shiftRoutineMonth(-1)), nav('›', '다음 달', () => shiftRoutineMonth(1)));
   month.append(head, cards);
   for (const [it, g] of rows) {
     const c = h('div', 'mcard'), cal = h('div', 'mini-cal'), t = tally(it, first, last, today), foot = h('div', 'mcard-foot');
     paint(c, g);
     cal.append(...Array.from({ length: weekday(first) }, () => h('span')));
-    for (let b = first; b <= last; b++) cal.append(h('span', `sq ${dayMark(it, toStr(b), today)}`, b - first + 1));
-    foot.append(h('span', '', t.due ? `달성률 ${Math.round((t.done / t.due) * 100)}%` : '달성률 –'), h('span', '', `✔ ${t.done}회`));
+    for (let b = first; b <= last; b++) {
+      const q = h('span', `sq ${dayMark(it, toStr(b), today) || 'off'}`);
+      q.title = fmtShort(toStr(b));
+      cal.append(q);
+    }
+    foot.append(h('span', 'rate', t.due ? `${Math.round((t.done / t.due) * 100)}%` : '–'), h('span', '', `${t.done}회`));
     c.append(h('div', 'mcard-title', it.title), cal, foot);
     cards.append(c);
   }
+  const legend = h('div', 'legend');
+  for (const [cls, text] of [['done', '한 날'], ['miss', '안 한 날'], ['later', '할 날'], ['off', '쉬는 날']]) {
+    const e = h('span');
+    e.append(h('span', `sq ${cls}`), text);
+    legend.append(e);
+  }
+  month.append(legend);
   $('routineStats').replaceChildren(week, month);
 }
 // 달 넘기기: 그달 1일로 (이번 달이면 오늘) — 위의 한 주도 같이 바뀜
@@ -330,14 +365,24 @@ function openRoutine(g) {
   renderRoutineColors();
   $('routineEditor').showModal();
 }
+// 카테고리 색 고르기와 같은 팔레트 + 마지막 '+'는 직접 고르기 (고른 색이 팔레트에 없으면 '+' 칸에 그 색)
 function renderRoutineColors() {
+  const own = !PASTELS.some(c => c.toLowerCase() === routineColor.toLowerCase());
+  const custom = h('label', 'swatch custom' + (own ? ' on' : ''), own ? '' : '+');
+  custom.title = '직접 고르기';
+  if (own) custom.style.background = routineColor;
+  const input = h('input');
+  input.type = 'color';
+  input.value = routineColor;
+  input.addEventListener('change', () => { routineColor = input.value; renderRoutineColors(); });
+  custom.append(input);
   $('routineColors').replaceChildren(...PASTELS.map(c => {
-    const b = h('button', 'swatch' + (c === routineColor ? ' on' : ''));
+    const b = h('button', 'swatch' + (c.toLowerCase() === routineColor.toLowerCase() ? ' on' : ''));
     b.type = 'button';
     b.style.background = c;
     b.addEventListener('click', () => { routineColor = c; renderRoutineColors(); });
     return b;
-  }));
+  }), custom);
 }
 // 저장할 때는 id로 찾아서 바꿈 (그사이 동기화로 db.routines 가 새 배열로 바뀌었을 수 있어서)
 routineForm.addEventListener('submit', e => {
