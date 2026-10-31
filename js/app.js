@@ -526,7 +526,8 @@ function renderDday() {
     const li = h('li');
     setColor(li, viewCat(it));
     const diff = toNum(next) - toNum(today);
-    li.append(h('span', 'title', it.title), h('span', 'meta', fmtShort(next)), h('span', 'dd', diff ? `D-${diff}` : 'D-day'));
+    // 7일 이내(D-7 ~ D-day)는 빨간 글씨 — 드물어야 눈에 띄어서 이번 주 안에 챙길 것만
+    li.append(h('span', 'title', it.title), h('span', 'meta', fmtShort(next)), h('span', 'dd' + (diff <= 7 ? ' soon' : ''), diff ? `D-${diff}` : 'D-day'));
     li.addEventListener('click', () => openEditor(it, next));
     return li;
   }) : [emptyRow('일정 편집에서 D-day를 켜면 여기 나와요')]));

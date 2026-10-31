@@ -492,6 +492,7 @@ li.done .title { color: var(--muted); text-decoration: line-through; }
 .list .meta { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .list .place { max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
 .list .dd { font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.list .dd.soon { color: var(--sun); } /* 7일 이내 */
 .list li[draggable="true"] { cursor: grab; }
 
 .add-input {
