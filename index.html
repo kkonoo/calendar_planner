@@ -31,6 +31,10 @@
     </div>
     <div class="cat-pick" id="sharedPick" hidden></div>
     <select id="whoSelect" title="담당자별로 보기" hidden></select>
+    <div class="seg" id="routineSeg" hidden>
+      <button type="button" data-tab="">기록</button>
+      <button type="button" data-tab="stats">통계</button>
+    </div>
     <div class="search">
       <input type="search" id="searchInput" placeholder="검색 (Ctrl+K)" autocomplete="off">
       <div class="search-results" id="searchResults" hidden></div>
@@ -127,6 +131,7 @@
   </section>
   <div class="routine-list" id="routineList"></div>
   <button class="add-group" id="addRoutineBtn">+ 루틴 추가</button>
+  <div class="routine-stats" id="routineStats"></div>
 </main>
 
 <dialog id="editor">

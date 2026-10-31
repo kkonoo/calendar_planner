@@ -64,8 +64,14 @@ function moveRoutine(id, target, before) {
 }
 
 // ---------- 그리기 ----------
+// 기록 / 통계 (prefs.routineTab, 기기별) — 위의 한 주는 둘 다
 function renderRoutine() {
   renderWeek();
+  const stats = prefs.routineTab === 'stats';
+  document.querySelectorAll('#routineSeg [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === (stats ? 'stats' : '')));
+  $('routineList').hidden = $('addRoutineBtn').hidden = stats;
+  $('routineStats').hidden = !stats;
+  if (stats) return renderStats();
   const groups = db.routines || [];
   // 루틴이 없어진 습관 (예: 다른 기기에서 루틴을 받기 전) → 안 보이게 두지 않고 '루틴 없음'에
   const loose = habits().filter(it => !routineById(it.routine)).sort(byOrder);
@@ -98,6 +104,11 @@ function renderWeek() {
     return b;
   }));
 }
+document.querySelectorAll('#routineSeg [data-tab]').forEach(b => b.addEventListener('click', () => {
+  if (b.dataset.tab) prefs.routineTab = b.dataset.tab; else delete prefs.routineTab;
+  savePrefs();
+  renderRoutine();
+}));
 const shiftRoutineDay = d => { routineDay = toStr(toNum(routineDay) + d); renderRoutine(); };
 $('routinePrev').addEventListener('click', () => shiftRoutineDay(-7));
 $('routineNext').addEventListener('click', () => shiftRoutineDay(7));
@@ -180,6 +191,83 @@ function habitRow(it, s, g) {
     sortable(li, HABIT_DRAG, (id, before) => placeHabit(id, g.id, it, before));
   }
   return li;
+}
+
+// ---------- 통계: 보고 있는 날의 한 주 표 + 한 달 칸 ----------
+// 칸: done = 한 날(루틴 색), miss = 해야 했는데 안 한 날(옅게), later = 앞으로 할 날(테두리), '' = 쉬는 날·시작 전
+function dayMark(it, s, today) {
+  if (!occursOn(it, s)) return '';
+  if (it.doneDates.includes(s)) return 'done';
+  return s > today ? 'later' : 'miss';
+}
+// 달성률·횟수: 오늘까지 해야 했던 날 중 한 날
+function tally(it, from, to, today) {
+  let due = 0, done = 0;
+  for (let b = from; b <= to; b++) {
+    const m = dayMark(it, toStr(b), today);
+    if (m === 'done') done++;
+    if (m === 'done' || m === 'miss') due++;
+  }
+  return { due, done };
+}
+function renderStats() {
+  const today = todayStr(), sel = toNum(routineDay), start = sel - weekday(sel);
+  // 루틴 순서대로 (루틴 없는 습관은 뒤에), 색은 루틴 색
+  const rows = [...(db.routines || []).flatMap(g => habitsIn(g.id).map(it => [it, g])),
+    ...habits().filter(it => !routineById(it.routine)).sort(byOrder).map(it => [it, null])];
+  const paint = (e, g) => { if (g) e.style.setProperty('--c', tone(g.color)); };
+  if (!rows.length) return $('routineStats').replaceChildren(h('p', 'hint', '기록 탭에서 루틴과 습관을 만들면 여기에 모아서 보여요.'));
+
+  const week = h('section', 'panel'), weekHead = h('div', 'panel-head'), table = h('table', 'week-table'), headRow = h('tr');
+  weekHead.append(h('h2', '', '한 주'));
+  week.append(weekHead, table);
+  headRow.append(h('th'), ...WD.map(w => h('th', 'd', w)), h('th', 'n'));
+  table.append(headRow);
+  for (const [it, g] of rows) {
+    const tr = h('tr'), name = h('td', 'wt-title', it.title);
+    paint(tr, g);
+    name.title = it.title;
+    tr.append(name);
+    for (let k = 0; k < 7; k++) {
+      const td = h('td', 'd');
+      td.append(h('span', `sq ${dayMark(it, toStr(start + k), today)}`));
+      tr.append(td);
+    }
+    const t = tally(it, start, start + 6, today);
+    tr.append(h('td', 'n', t.due ? `${t.done}/${t.due}` : ''));
+    table.append(tr);
+  }
+
+  const [y, m] = ymd(routineDay), first = toNum(`${y}-${pad(m)}-01`), last = first + new Date(Date.UTC(y, m, 0)).getUTCDate() - 1;
+  const month = h('section', 'panel'), head = h('div', 'panel-head'), cards = h('div', 'month-cards');
+  const nav = (text, d) => {
+    const b = h('button', 'icon-btn small', text);
+    b.setAttribute('aria-label', d < 0 ? '지난달' : '다음 달');
+    b.addEventListener('click', () => shiftRoutineMonth(d));
+    return b;
+  };
+  head.append(nav('‹', -1), h('h2', '', `${y}년 ${m}월`), nav('›', 1));
+  month.append(head, cards);
+  for (const [it, g] of rows) {
+    const c = h('div', 'mcard'), cal = h('div', 'mini-cal'), t = tally(it, first, last, today), foot = h('div', 'mcard-foot');
+    paint(c, g);
+    cal.append(...Array.from({ length: weekday(first) }, () => h('span')));
+    for (let b = first; b <= last; b++) cal.append(h('span', `sq ${dayMark(it, toStr(b), today)}`, b - first + 1));
+    foot.append(h('span', '', t.due ? `달성률 ${Math.round((t.done / t.due) * 100)}%` : '달성률 –'), h('span', '', `✔ ${t.done}회`));
+    c.append(h('div', 'mcard-title', it.title), cal, foot);
+    cards.append(c);
+  }
+  $('routineStats').replaceChildren(week, month);
+}
+// 달 넘기기: 그달 1일로 (이번 달이면 오늘) — 위의 한 주도 같이 바뀜
+function shiftRoutineMonth(d) {
+  let [y, m] = ymd(routineDay);
+  m += d;
+  if (m < 1) { m = 12; y--; }
+  if (m > 12) { m = 1; y++; }
+  const s = `${y}-${pad(m)}-01`, today = todayStr();
+  routineDay = s.slice(0, 7) === today.slice(0, 7) ? today : s;
+  renderRoutine();
 }
 
 // ---------- 습관 편집 창: 이름, 루틴, 요일(다 켜면 매일), 시작일 ----------

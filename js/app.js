@@ -273,6 +273,7 @@ function render() {
   document.querySelector('.view-title').textContent = v === 'routine' ? '루틴' : '할 일';
   document.querySelectorAll('#viewSeg [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === v));
   $('scopeSeg').hidden = v !== 'calendar' || !db.categories.some(c => c.shared);
+  $('routineSeg').hidden = v !== 'routine';
   document.querySelectorAll('#scopeSeg [data-show]').forEach(b => b.classList.toggle('on', b.dataset.show === scope()));
   renderSharedPick();
   renderWhoPick();
