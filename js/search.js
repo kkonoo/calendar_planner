@@ -8,7 +8,7 @@ function searchItems(q) {
   const text = it => [it.title, it.place, it.note, ...(it.checklist || []).map(c => c.text)].join('\n').toLowerCase();
   // 다가오는 일정(가까운 순) → 지난 일정(최근 순) → 날짜 없는 할 일
   const rank = r => (!r.when ? 2 : r.when >= today ? 0 : 1);
-  return live().filter(it => text(it).includes(q))
+  return live().filter(it => !it.routine && text(it).includes(q)) // 루틴의 습관은 빼고 (누르면 일정 편집 창이 열려서)
     .map(it => ({ it, when: it.repeat ? nextOccurrence(it, today) || it.date : it.date }))
     .sort((a, b) => rank(a) - rank(b)
       || (rank(a) === 0 ? a.when.localeCompare(b.when) : rank(a) === 1 ? b.when.localeCompare(a.when) : b.it.createdAt - a.it.createdAt));

@@ -39,6 +39,7 @@
       <button type="button" data-view="calendar">달력</button>
       <button type="button" data-view="board">보드</button>
       <button type="button" data-view="table">목록</button>
+      <button type="button" data-view="routine">루틴</button>
     </div>
     <button class="btn" id="accountBtn" hidden>로그인</button>
     <button class="icon-btn" id="themeBtn" title="라이트/다크 전환">◐</button>
@@ -111,6 +112,21 @@
       <form id="tableAdd"><input class="add-input" id="tableInput" placeholder="+ 새 작업 추가" autocomplete="off"></form>
     </div>
   </div>
+</main>
+
+<!-- 루틴: 위 한 주 + 루틴 카드 (routine.js) -->
+<main class="routine-view">
+  <section class="panel week-panel">
+    <div class="panel-head">
+      <button class="icon-btn small" id="routinePrev" aria-label="지난주">‹</button>
+      <h2 id="routineDate"></h2>
+      <button class="icon-btn small" id="routineNext" aria-label="다음 주">›</button>
+      <button class="btn small" id="routineToday">오늘</button>
+    </div>
+    <div class="week-strip" id="weekStrip"></div>
+  </section>
+  <div class="routine-list" id="routineList"></div>
+  <button class="add-group" id="addRoutineBtn">+ 루틴 추가</button>
 </main>
 
 <dialog id="editor">
@@ -188,6 +204,35 @@
   </form>
 </dialog>
 
+<dialog id="habitEditor">
+  <form id="habitForm">
+    <input name="title" class="title-input" placeholder="습관 · 예) 💧 공복에 물 한 잔" required autocomplete="off">
+    <div class="row"><label>루틴</label><select name="routine"></select></div>
+    <div class="row"><label>요일</label><div class="weekday-pick" id="habitDays"></div><span class="hint" id="habitDaysHint"></span></div>
+    <div class="row"><label>시작일</label><input type="date" name="date" required><span class="hint">이날부터 기록·연속을 세요</span></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn danger" id="habitDel">삭제</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="habitCancel">취소</button>
+      <button class="btn primary">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="routineEditor">
+  <form id="routineForm">
+    <input name="name" class="title-input" placeholder="루틴 · 예) ☀️ 아침 루틴" required autocomplete="off">
+    <div class="row"><label>언제</label><input name="cue" placeholder="예) 눈 뜨면, 8:30, 퇴근 후" autocomplete="off"></div>
+    <div class="row"><label>색</label><div class="swatches" id="routineColors"></div></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn danger" id="routineDel">삭제</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="routineCancel">취소</button>
+      <button class="btn primary">저장</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="settings">
   <section id="accountSection" hidden>
     <h2>계정</h2>
@@ -253,6 +298,7 @@
 <script src="js/ics.js"></script>
 <script src="js/app.js"></script>
 <script src="js/views.js"></script>
+<script src="js/routine.js"></script>
 <script src="js/search.js"></script>
 <script type="module" src="js/sync.js"></script>
 </body>

@@ -160,15 +160,16 @@ const whoText = it => whoOf(it).map(memberName).join('·');
 // '나'는 담당 없는 일정(개인 일정, 공유 캘린더의 모두 일정)도 같이 → 남이 맡은 것만 빠짐 ('공유' 보기면 개인 일정은 원래 안 나옴)
 const people = () => {
   const cal = (prefs.view || 'calendar') === 'calendar';
-  if (cal && scope() === 'mine') return [];
+  if ((cal && scope() === 'mine') || prefs.view === 'routine') return []; // 루틴(개인 전용)엔 담당 없음
   const off = cal && scope() === 'shared' ? prefs.hideShared || [] : [];
   return [...new Set(db.categories.flatMap(c => (c.shared && !off.includes(c.id) ? c.shared.emails : [])))]
     .sort((a, b) => (b === window.me?.email) - (a === window.me?.email) || memberName(a).localeCompare(memberName(b), 'ko'));
 };
 const whoFilter = () => (people().includes(prefs.who) ? prefs.who : null);
+// 루틴의 습관(it.routine)은 루틴 탭에만 (routine.js) → 달력·보드·목록·할 일·D-day엔 안 나옴
 const assigned = () => {
-  const w = whoFilter(), me = w === window.me?.email;
-  return w ? live().filter(it => whoOf(it).includes(w) || (me && !whoOf(it).length)) : live();
+  const w = whoFilter(), me = w === window.me?.email, all = live().filter(it => !it.routine);
+  return w ? all.filter(it => whoOf(it).includes(w) || (me && !whoOf(it).length)) : all;
 };
 // 추가 카테고리: db.also = { 일정 id: [카테고리 id] } — 내 계정에만 저장 (공유 일정에 붙여도 다른 멤버에겐 안 보임).
 // 색·공유 여부는 대표 카테고리(it.cat)가 정하고, 추가는 내 카테고리만 (보기·탭에 같이 나오기만 함)
@@ -265,10 +266,11 @@ function shiftMonth(d) {
 }
 
 // ---------- 그리기 ----------
-// 보기: calendar(일정) / board(보드) / table(눈금) — 보드·눈금은 views.js
+// 보기: calendar(일정) / board(보드) / table(눈금) / routine(루틴) — 보드·눈금은 views.js, 루틴은 routine.js
 function render() {
   const v = prefs.view || 'calendar';
   document.body.dataset.view = v;
+  document.querySelector('.view-title').textContent = v === 'routine' ? '루틴' : '할 일';
   document.querySelectorAll('#viewSeg [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === v));
   $('scopeSeg').hidden = v !== 'calendar' || !db.categories.some(c => c.shared);
   document.querySelectorAll('#scopeSeg [data-show]').forEach(b => b.classList.toggle('on', b.dataset.show === scope()));
@@ -276,6 +278,7 @@ function render() {
   renderWhoPick();
   if (v === 'board') return renderBoard();
   if (v === 'table') return renderTable();
+  if (v === 'routine') return renderRoutine();
   $('monthTitle').textContent = `${view.y}년 ${view.m}월`;
   renderGrid();
   renderDay();

@@ -1,6 +1,6 @@
 // 구글 계정 로그인 + 기기 간 동기화 (Firebase Auth + Firestore).
 // firebase-config.js 가 비어 있으면 아무것도 하지 않음 → 이 브라우저에만 저장.
-// 저장 위치: users/{uid}/items/{일정 id}, users/{uid}/meta/categories (카테고리), users/{uid}/meta/days (날짜 칠하기), users/{uid}/meta/also (추가 카테고리)
+// 저장 위치: users/{uid}/items/{일정 id}, users/{uid}/meta/categories (카테고리), users/{uid}/meta/days (날짜 칠하기), users/{uid}/meta/also (추가 카테고리), users/{uid}/meta/routines (루틴)
 // 공유 캘린더: shared/{캘린더 id} = { name, color, buckets, owner, ownerEmail, emails, nicks, names }, 일정은 shared/{캘린더 id}/items/{일정 id}
 //   emails 에 든 구글 계정만 읽고 씀 (firestore.rules). 앱에서는 카테고리 하나로 보임 (category.shared = { owner, ownerEmail, emails, nicks, names })
 //   담당자 이름 표시용: nicks = { 이메일: 이름 } — 만든 사람이 멤버 목록에서 적음 (지운 이름은 '')
@@ -32,6 +32,7 @@ async function start() {
     categories: { get: () => db.categories.filter(c => !c.shared), set: v => { db.categories = [...v, ...db.categories.filter(c => c.shared)]; } },
     days: { get: () => db.dayColors || {}, set: v => { db.dayColors = v; } },
     also: { get: () => db.also || {}, set: v => { db.also = v; } }, // 추가 카테고리 (공유 일정에 붙인 것도 내 계정에만)
+    routines: { get: () => db.routines || [], set: v => { db.routines = v; } }, // 루틴 (습관은 일정처럼 items 에)
   };
   let uid = null, email = '', unsub = [], calUnsub = {}, synced = {}, home = {}, metaJSON = {}, calJSON = {}, ready = {}, loaded = {}, named = new Set();
   // 이 기기가 서버와 어디까지 맞췄는지. db 안에 같이 저장 → 로그아웃·계정 변경으로 db가 바뀌면 같이 없어짐
