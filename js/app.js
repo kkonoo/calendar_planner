@@ -482,25 +482,39 @@ function itemRow(it, s, extra) {
 const emptyRow = text => h('li', 'empty', text);
 
 // 날짜 칠하기 (강조)
-const DAY_COLORS = ['#FF5A5F', '#FF9F1C', '#FFD60A', '#34C759', '#3B82F6', '#A855F7'];
 function setDayColor(s, color) {
   const m = { ...db.dayColors };
   if (color) m[s] = color; else delete m[s];
   db.dayColors = m;
   save();
 }
+// 색은 카테고리와 같은 팔레트(PASTELS) + 마지막 '+'는 직접 고르기 (고른 색이 팔레트에 없으면 '+' 칸에 그 색)
 function renderDayPalette() {
   const cur = (db.dayColors || {})[selected] || null;
+  const same = c => !!cur && c.toLowerCase() === cur.toLowerCase();
+  const own = !!cur && !PASTELS.some(same);
   $('dayColorBtn').classList.toggle('on', !!cur);
   if (cur) $('dayColorBtn').style.setProperty('--hl', tone(cur));
-  $('dayPalette').replaceChildren(...[null, ...DAY_COLORS].map(c => {
-    const b = h('button', 'swatch' + (c ? '' : ' none') + (c === cur ? ' on' : ''));
+  const none = h('button', 'swatch none' + (cur ? '' : ' on'));
+  none.type = 'button';
+  none.title = '칠하기 지우기';
+  none.addEventListener('click', () => setDayColor(selected, null));
+  const custom = h('label', 'swatch custom' + (own ? ' on' : ''), own ? '' : '+');
+  custom.title = '직접 고르기';
+  if (own) custom.style.background = cur;
+  const input = h('input');
+  input.type = 'color';
+  if (cur) input.value = cur;
+  input.addEventListener('change', () => setDayColor(selected, input.value));
+  custom.append(input);
+  $('dayPalette').replaceChildren(none, ...PASTELS.map(c => {
+    const b = h('button', 'swatch' + (same(c) ? ' on' : ''));
     b.type = 'button';
-    b.title = c ? '이 색으로 칠하기' : '칠하기 지우기';
-    if (c) b.style.background = c;
+    b.title = '이 색으로 칠하기';
+    b.style.background = c;
     b.addEventListener('click', () => setDayColor(selected, c));
     return b;
-  }));
+  }), custom);
 }
 $('dayColorBtn').addEventListener('click', () => { $('dayPalette').hidden = !$('dayPalette').hidden; });
 

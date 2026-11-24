@@ -422,7 +422,7 @@ body[data-view="routine"] .routine-view { display: flex; }
   border-radius: 50%;
 }
 #dayColorBtn.on::before { width: 16px; height: 16px; border: none; background: var(--hl); }
-.day-palette { display: flex; gap: 8px; margin: 0 0 10px; }
+.day-palette { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
 .swatch {
   width: 24px;
   height: 24px;
