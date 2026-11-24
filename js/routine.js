@@ -71,8 +71,10 @@ function renderRoutine() {
   document.querySelectorAll('#routineSeg [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === (stats ? 'stats' : '')));
   $('weekPanel').hidden = $('routineList').hidden = $('addRoutineBtn').hidden = stats;
   $('routineStats').hidden = !stats;
+  $('periodCard').hidden = stats || !periodOn(); // 생리 기록 카드 (period.js)
   if (stats) return renderStats();
   renderWeek();
+  if (periodOn()) renderPeriodCard();
   const groups = db.routines || [];
   // 루틴이 없어진 습관 (예: 다른 기기에서 루틴을 받기 전) → 안 보이게 두지 않고 '루틴 없음'에
   const loose = habits().filter(it => !routineById(it.routine)).sort(byOrder);
@@ -217,7 +219,12 @@ function tally(it, from, to, today) {
   }
   return { due, done };
 }
+// 생리 기록을 켰으면 맨 아래에 생리 주기 (period.js)
 function renderStats() {
+  renderHabitStats();
+  if (periodOn()) $('routineStats').append(periodStatsPanel());
+}
+function renderHabitStats() {
   const today = todayStr(), sel = toNum(routineDay), start = sel - weekday(sel);
   // 루틴 순서대로 (루틴 없는 습관은 뒤에), 색은 루틴 색
   const rows = [...(db.routines || []).flatMap(g => habitsIn(g.id).map(it => [it, g])),

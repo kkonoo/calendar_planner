@@ -136,6 +136,7 @@
     </div>
     <div class="week-strip" id="weekStrip"></div>
   </section>
+  <section class="panel period-card" id="periodCard" hidden></section>
   <div class="routine-list" id="routineList"></div>
   <button class="add-group" id="addRoutineBtn">+ 루틴 추가</button>
   <div class="routine-stats" id="routineStats"></div>
@@ -287,6 +288,17 @@
   <div id="catEditor"></div>
   <button class="btn" id="addCatBtn">+ 카테고리 추가</button>
 
+  <h2>생리 기록</h2>
+  <div class="row wide">
+    <label>생리 기록</label>
+    <select id="periodSelect">
+      <option value="">끄기</option>
+      <option value="on">켜기</option>
+    </select>
+  </div>
+  <div id="periodColors" hidden></div>
+  <p class="hint">공유 캘린더 멤버에게는 보이지 않아요. 예상 날짜는 참고용이에요.</p>
+
   <h2>백업 · 내보내기</h2>
   <p class="hint">데이터는 이 브라우저에 저장돼요. 브라우저 기록을 지우기 전이나 다른 기기로 옮길 때는 백업 파일을 저장해 두세요.</p>
   <div class="row">
@@ -311,6 +323,7 @@
 <script src="js/app.js"></script>
 <script src="js/views.js"></script>
 <script src="js/routine.js"></script>
+<script src="js/period.js"></script>
 <script src="js/search.js"></script>
 <script type="module" src="js/sync.js"></script>
 </body>

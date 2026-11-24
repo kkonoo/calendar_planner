@@ -24,6 +24,9 @@
   --lift: 0%;  /* 흰색을 섞는 양 (app.js tone) */
   --tint: 16%; /* 일정 칩 배경 */
   --fill: 42%; /* 날짜 칸 칠하기 */
+  /* 생리 기록 (period.js): --period·--fert 는 설정에서 고른 색 (app.js가 넣음), ink = 채운 동그라미 위 글씨 */
+  --period-ink: var(--period-ink-l, #FFFFFF); --fert-ink: var(--fert-ink-l, #FFFFFF);
+  --period-text: color-mix(in srgb, var(--period) 75%, var(--text)); --fert-text: color-mix(in srgb, var(--fert) 75%, var(--text));
   color-scheme: only light; /* only = 삼성 인터넷 등이 강제로 어둡게 바꾸지 않게 */
 }
 @media (prefers-color-scheme: dark) {
@@ -32,7 +35,7 @@
     --text: #ECECEE; --muted: #8E8E95; --faint: #5C5C63;
     --accent: #C9CDD3; --accent-soft: #2A2D33; --on-accent: #16171A; --hot: #F08A5D; --sun: #FF6B6F; --sat: #6FA0FF;
     --shadow: none; color-scheme: only dark;
-    --lift: 35%; --tint: 30%; --fill: 50%;
+    --lift: 35%; --tint: 30%; --fill: 50%; --period-ink: #16171A; --fert-ink: #16171A;
   }
 }
 :root[data-theme="dark"] {
@@ -40,7 +43,7 @@
   --text: #ECECEE; --muted: #8E8E95; --faint: #5C5C63;
   --accent: #C9CDD3; --accent-soft: #2A2D33; --on-accent: #16171A; --hot: #F08A5D; --sun: #FF6B6F; --sat: #6FA0FF;
   --shadow: none; color-scheme: only dark;
-  --lift: 35%; --tint: 30%; --fill: 50%;
+  --lift: 35%; --tint: 30%; --fill: 50%; --period-ink: #16171A; --fert-ink: #16171A;
 }
 
 * { box-sizing: border-box; }
@@ -307,6 +310,12 @@ body[data-view="routine"] .routine-view { display: flex; }
 .cell.sun .num { color: var(--sun); }
 .cell.sat .num { color: var(--sat); }
 .cell.today .num { background: var(--accent); color: var(--on-accent); }
+/* 생리 기록: 생리 = 채운 동그라미, 예상 생리 = 점선, 가임기 = 옅은 바탕, 배란일 = 채운 동그라미. 오늘이면 바깥에 테두리 하나 더 */
+.cell.p-period .num { background: var(--period); color: var(--period-ink); }
+.cell.p-predict .num { border: 1.5px dashed var(--period); color: var(--period-text); }
+.cell.p-fertile .num { background: color-mix(in srgb, var(--fert) 16%, transparent); color: var(--fert-text); }
+.cell.p-ovul .num { background: var(--fert); color: var(--fert-ink); }
+.cell.today:is(.p-period, .p-predict, .p-fertile, .p-ovul) .num { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); }
 .hol { font-size: 11px; color: var(--sun); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 일정 = 색 배경 + 동그라미, 할 일 = 배경 없음 + 네모, 여러 날 = 이어진 막대 */
@@ -884,6 +893,30 @@ span.col-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; 
 .routine-stats { display: flex; flex-direction: column; gap: 14px; }
 .routine-stats .icon-btn.small { margin-left: 0; }
 .routine-stats .panel-head .hint { margin-right: auto; font-size: 13px; font-variant-numeric: tabular-nums; } /* 날짜 → 오른쪽 끝에 넘기기 버튼 */
+
+/* 생리 주기 (period.js): 루틴 → 기록 카드(고른 날 · 예상 · 기록 단추), 통계 맨 아래 */
+.period-row { display: flex; align-items: stretch; gap: 10px; }
+.period-day { display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 132px; padding: 8px 12px; border-radius: 9px; background: var(--surface-2); }
+.period-day .d { font-weight: 600; font-variant-numeric: tabular-nums; }
+.period-day .state { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.period-day .state.on { font-weight: 600; color: var(--period-text); }
+.period-acts { display: flex; flex-direction: column; justify-content: center; gap: 6px; margin-left: auto; }
+.period-grid { flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: var(--line); }
+.period-grid > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: var(--surface); }
+.period-grid .k, .period-grid .s { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.period-grid .v { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; white-space: nowrap; }
+.period-grid .v.period { color: var(--period-text); }
+.period-grid .v.fert { color: var(--fert-text); }
+.period-sec { margin-top: 14px; }
+.period-sec h3 { margin: 0 0 6px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.period-sec .hint { margin: 6px 0 0; }
+.period-cycles { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.period-cycles td { padding: 5px 0; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); white-space: nowrap; }
+.period-cycles td:first-child { width: 1%; padding-right: 12px; color: var(--muted); }
+.period-cycles td.n { width: 1%; padding-left: 12px; text-align: right; }
+.period-cycles td.n.m { color: var(--muted); }
+.period-cycles .bar { height: 6px; border-radius: 3px; background: var(--faint); opacity: .55; }
+.period-cycles .bar.now { box-sizing: border-box; border: 1px dashed var(--faint); background: none; opacity: 1; }
 .week-table .wt-group td { padding: 12px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
 .sq.off::after { content: ""; width: 3px; height: 3px; border-radius: 50%; background: var(--faint); } /* 쉬는 날: 작은 점 */
 .mini-cal .sq.off::after { display: none; }
@@ -993,6 +1026,9 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
   .member .hint { white-space: nowrap; }
   .task-view { flex-direction: column; gap: 10px; padding: 12px 12px 16px; }
   .routine-view { gap: 12px; padding: 12px 12px 16px; }
+  .period-row { flex-wrap: wrap; } /* 고른 날 + 단추 한 줄, 예상은 아래 줄 */
+  .period-day { flex: 1; }
+  .period-grid { flex-basis: 100%; order: 3; }
   .ring { width: 36px; height: 36px; }
   .week-table .d { width: 24px; }
   .week-table .n { width: 34px; }

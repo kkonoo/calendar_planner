@@ -270,6 +270,7 @@ function shiftMonth(d) {
 function render() {
   const v = prefs.view || 'calendar';
   document.body.dataset.view = v;
+  applyPeriodColors();
   document.querySelector('.view-title').textContent = v === 'routine' ? '루틴' : '할 일';
   document.querySelectorAll('#viewSeg [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === v));
   $('scopeSeg').hidden = v !== 'calendar' || !db.categories.some(c => c.shared);
@@ -337,7 +338,7 @@ function renderGrid(grid = $('grid'), v = view) {
   grid.style.gridTemplateRows = phone ? '' : `repeat(${weeks}, minmax(0, 1fr))`;
   grid.replaceChildren();
 
-  const cells = [];
+  const cells = [], pm = periodMarks(start, start + weeks * 7 - 1); // 생리 기록 (period.js)
   for (let i = 0; i < weeks * 7; i++) {
     const s = toStr(start + i), [, m, d] = ymd(s), hol = HOLIDAYS[s];
     const cell = h('div', 'cell');
@@ -348,6 +349,8 @@ function renderGrid(grid = $('grid'), v = view) {
     if (i % 7 === 0 || hol) cell.classList.add('sun'); else if (i % 7 === 6) cell.classList.add('sat');
     const hl = (db.dayColors || {})[s];
     if (hl) { cell.classList.add('hl'); cell.style.setProperty('--hl', tone(hl)); }
+    const pk = pm?.get(start + i);
+    if (pk) cell.classList.add('p-' + pk);
 
     const head = h('div', 'cell-head');
     head.append(h('span', 'num', d));
@@ -488,33 +491,16 @@ function setDayColor(s, color) {
   db.dayColors = m;
   save();
 }
-// 색은 카테고리와 같은 팔레트(PASTELS) + 마지막 '+'는 직접 고르기 (고른 색이 팔레트에 없으면 '+' 칸에 그 색)
+// 색은 카테고리와 같은 팔레트 (paletteSwatches)
 function renderDayPalette() {
   const cur = (db.dayColors || {})[selected] || null;
-  const same = c => !!cur && c.toLowerCase() === cur.toLowerCase();
-  const own = !!cur && !PASTELS.some(same);
   $('dayColorBtn').classList.toggle('on', !!cur);
   if (cur) $('dayColorBtn').style.setProperty('--hl', tone(cur));
   const none = h('button', 'swatch none' + (cur ? '' : ' on'));
   none.type = 'button';
   none.title = '칠하기 지우기';
   none.addEventListener('click', () => setDayColor(selected, null));
-  const custom = h('label', 'swatch custom' + (own ? ' on' : ''), own ? '' : '+');
-  custom.title = '직접 고르기';
-  if (own) custom.style.background = cur;
-  const input = h('input');
-  input.type = 'color';
-  if (cur) input.value = cur;
-  input.addEventListener('change', () => setDayColor(selected, input.value));
-  custom.append(input);
-  $('dayPalette').replaceChildren(none, ...PASTELS.map(c => {
-    const b = h('button', 'swatch' + (same(c) ? ' on' : ''));
-    b.type = 'button';
-    b.title = '이 색으로 칠하기';
-    b.style.background = c;
-    b.addEventListener('click', () => setDayColor(selected, c));
-    return b;
-  }), custom);
+  $('dayPalette').replaceChildren(none, ...paletteSwatches(cur, c => setDayColor(selected, c)));
 }
 $('dayColorBtn').addEventListener('click', () => { $('dayPalette').hidden = !$('dayPalette').hidden; });
 
@@ -1045,6 +1031,26 @@ const PASTELS = [
   '#F4978E', '#F8B88B', '#F5D27A', '#C5D98F', '#9FCB8E', '#7FCFB8', '#84CDE0', '#8DB6F2',
   '#A7A3F2', '#B99AF0', '#DDA0E5', '#F3A6C8', '#D2AE8E', '#A88B73', '#9AA5B1', '#C7C1B8',
 ];
+// 팔레트 색 단추들 + 마지막 '+'는 직접 고르기 (고른 색 cur가 팔레트에 없으면 '+' 칸에 그 색) — 날짜 칠하기·생리 색
+function paletteSwatches(cur, onPick) {
+  const same = c => !!cur && c.toLowerCase() === cur.toLowerCase();
+  const own = !!cur && !PASTELS.some(same);
+  const custom = h('label', 'swatch custom' + (own ? ' on' : ''), own ? '' : '+');
+  custom.title = '직접 고르기';
+  if (own) custom.style.background = cur;
+  const input = h('input');
+  input.type = 'color';
+  if (cur) input.value = cur;
+  input.addEventListener('change', () => onPick(input.value));
+  custom.append(input);
+  return [...PASTELS.map(c => {
+    const b = h('button', 'swatch' + (same(c) ? ' on' : ''));
+    b.type = 'button';
+    b.style.background = c;
+    b.addEventListener('click', () => onPick(c));
+    return b;
+  }), custom];
+}
 let paletteFor = null, membersFor = null; // 팔레트·멤버 목록을 펼친 카테고리 id
 function renderCatEditor() {
   $('shareHint').hidden = !window.me;
