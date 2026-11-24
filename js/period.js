@@ -92,7 +92,7 @@ function renderPeriodCard() {
   row.append(acts);
   $('periodCard').replaceChildren(head, row);
 }
-// 다음 생리 · 가임기 · 배란일 (오늘 기준 — 이번 주기 가임기가 지났으면 다음 주기)
+// 평균 주기 · 다음 생리 · 가임기 · 배란일 (오늘 기준 — 이번 주기 가임기가 지났으면 다음 주기)
 function periodNext(st) {
   const T = toNum(todayStr()), sh = n => fmtShort(toStr(n));
   let ov = st.next - 14;
@@ -101,6 +101,7 @@ function periodNext(st) {
   const cell = (k, v, cls, sub) => { const c = h('div'); c.append(h('span', 'k', k), h('span', 'v ' + cls, v), h('span', 's', sub)); return c; };
   const grid = h('div', 'period-grid');
   grid.append(
+    cell('평균 주기', `${st.cycle}일`, '', st.cycles.length ? `${Math.min(...st.cycles)}~${Math.max(...st.cycles)}일` : '기본값이에요'),
     cell('다음 생리', sh(st.next), 'period', `${until(st.next)} · ${st.len}일간`),
     cell('가임기', `${fmtMD(toStr(ov - 5))}~${ymd(toStr(ov + 1))[2]}`, 'fert', T >= ov - 5 && T <= ov + 1 ? '지금 가임기예요' : until(ov - 5)),
     cell('배란일', sh(ov), 'fert', until(ov)),

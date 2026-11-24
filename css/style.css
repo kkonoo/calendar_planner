@@ -901,7 +901,7 @@ span.col-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; 
 .period-day .state { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .period-day .state.on { font-weight: 600; color: var(--period-text); }
 .period-acts { display: flex; flex-direction: column; justify-content: center; gap: 6px; margin-left: auto; }
-.period-grid { flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: var(--line); }
+.period-grid { flex: 1; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: var(--line); }
 .period-grid > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: var(--surface); }
 .period-grid .k, .period-grid .s { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .period-grid .v { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; white-space: nowrap; }
@@ -1029,6 +1029,7 @@ span.cl-text { cursor: text; user-select: none; word-break: break-word; }
   .period-row { flex-wrap: wrap; } /* 고른 날 + 단추 한 줄, 예상은 아래 줄 */
   .period-day { flex: 1; }
   .period-grid { flex-basis: 100%; order: 3; }
+  #periodCard .period-grid { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); } /* 기록 카드 4칸은 2×2 */
   .ring { width: 36px; height: 36px; }
   .week-table .d { width: 24px; }
   .week-table .n { width: 34px; }
